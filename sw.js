@@ -1,4 +1,4 @@
-const CACHE_NAME = 'egy-nutritionist-v2';
+const CACHE_NAME = 'egy-nutritionist-v3';
 const ASSETS = [
   './',
   './index.html',

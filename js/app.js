@@ -1,56 +1,64 @@
-// المنطق الرئيسي لتطبيق خبير التغذية المصري - نسخة الشغل المكتبي وما بعد استئصال المرارة (مع بيانات قابلة للتعديل الكامل)
+// المنطق الشامل لتطبيق "خبير التغذية المصري & أكلي" - يجمع مميزات FITNESS-APP-GEM + الشغل المكتبي + استئصال المرارة + الذكاء الاصطناعي + التعديل الكامل
 
-const STORAGE_KEY = 'egy_nutritionist_state_v2';
+const STORAGE_KEY = 'egy_nutritionist_state_v3';
 
-function getTodayDateString() {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
+function getTodayDateString(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getPrevDateString(currDateStr) {
+  const [y, m, d] = currDateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - 1);
+  return getTodayDateString(dt);
 }
 
 const DEFAULT_STATE = {
-  currentDate: getTodayDateString(),
-  activeTab: 'dashboard', // 'dashboard' | 'foods' | 'ai' | 'supplements' | 'profile'
+  selectedDate: getTodayDateString(),
+  activeTab: 'dashboard', // 'dashboard' | 'foods' | 'ai' | 'insights' | 'supplements' | 'profile'
   selectedCategory: 'all',
   searchQuery: '',
   profile: {
     name: 'بطل الشغل المكتبي',
+    gender: 'male',
     weight: 82,
     height: 175,
     age: 29,
-    workStyle: 'شغل مكتبي / ريموت (جلوس طويل + دليفري)',
+    activity: 'sedentary',
+    workStyle: 'شغل مكتبي / ريموت (جلوس طويل)',
+    foodSource: 'مطاعم وأكل شارع ودليفري',
+    workStart: '09:00',
+    workEnd: '18:00',
+    reminderTime: '20:00',
     goal: 'fat_loss', // 'fat_loss' | 'maintain' | 'muscle'
     gallbladderRemoved: true, // شايل المرارة (قابل للتعديل)
-    colonSensitive: true, // حساسية القولون والانتفاخات (قابل للتعديل)
+    colonSensitive: true,
     maxFatPerMeal: 14, // الحد الأقصى الآمن للدهون في الوجبة الواحدة لمن أزال المرارة (جم)
     medicalNotes: 'شايل المرارة: أحتاج تقسيم الدهون على مدار اليوم، تجنب المقليات والتومية الثقيلة، والتركيز على الألياف الذائبة.',
     targets: {
       calories: 1900,
       protein: 135,
       carbs: 205,
-      fats: 55, // دهون يومية أقل وموزعة لراحة الكبد بعد شيل المرارة
-      fiber: 32, // ألياف أعلى لربط العصارة الصفراوية
+      fats: 55,
+      fiber: 32,
       sodiumMax: 2200,
       iron: 14,
       calcium: 1000,
       potassium: 3000,
-      waterCups: 10,
+      waterCups: 10, // الكوب = 250 مل
       stretchBreaks: 6
     }
   },
-  todayLog: {
-    meals: [],
-    waterCups: 0,
-    stretchBreaks: 0,
-    supplementsTaken: {}
-  },
-  foodsDb: null, // يتم تحميلها من EGYPTIAN_FOODS_DB وتصبح قابلة للتعديل والإضافة
-  supplementsList: null, // يتم تحميلها من DEFAULT_SUPPLEMENTS وتصبح قابلة للتعديل الكامل
-  reminders: null, // يتم تحميلها من DEFAULT_REMINDERS وتصبح قابلة للتعديل الكامل
+  // سجلات متعددة الأيام لدعم اختيار التاريخ ومتابعة آخر 7 أيام ونسخ وجبات امبارح
+  logsByDate: {},
+  foodsDb: null,
+  supplementsList: null,
+  reminders: null,
   geminiApiKey: '',
   aiHistory: [
     {
       role: 'assistant',
-      text: 'أهلاً بك يا بطل! 👨‍💻🩺 أنا خبيرك الغذائي المصري، ومبرمج في ملفك الصحي إنك **شايل المرارة** وشغلك **مكتبي**. هراقبلك مش بس السعرات والألياف، لكن كمان **كمية الدهون في كل وجبة لوحدها** عشان ما تتعداش الحد الآمن للكبد، وهفكرك بالإنزيمات الهاضمة والألياف الذائبة اللي بتمنع المغص والحموضة والخمول. (كل البيانات والأكلات والمكملات قابلة للتعديل في أي وقت!)',
+      text: 'أهلاً بك يا بطل! 👨‍💻🩺 جمعتلك هنا كل مميزات **خبير التغذية المصري** مع مميزات تطبيق **أكلي (FITNESS-APP-GEM)**، ومضبوط لطبيعة **شغلك المكتبي** وإنك **شايل المرارة**:\n• تقدر تختار أي تاريخ أو تنسخ وجبات امبارح بضغطة زر.\n• تقسيم وجباتك لـ (فطار • غدا • عشا • سناك) مع حساب دهون كل وجبة لوحدها لحماية الهضم بدون مرارة.\n• متابعة رسوم بيانية لآخر 7 أيام وتنزيل تذكير تقويم الآيفون (.ics).',
       parsedMeal: null
     }
   ]
@@ -59,31 +67,55 @@ const DEFAULT_STATE = {
 let state = loadState();
 let reminderTimers = [];
 
+function ensureDayLog(dateStr) {
+  if (!state.logsByDate) state.logsByDate = {};
+  if (!state.logsByDate[dateStr]) {
+    state.logsByDate[dateStr] = {
+      meals: [],
+      waterCups: 0,
+      stretchBreaks: 0,
+      supplementsTaken: {}
+    };
+  }
+  return state.logsByDate[dateStr];
+}
+
+function getCurrentDayLog() {
+  return ensureDayLog(state.selectedDate || getTodayDateString());
+}
+
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
     const base = structuredClone(DEFAULT_STATE);
     base.foodsDb = structuredClone(window.EGYPTIAN_FOODS_DB || []);
     base.supplementsList = structuredClone(window.DEFAULT_SUPPLEMENTS || []);
     base.reminders = structuredClone(window.DEFAULT_REMINDERS || []);
 
-    if (!raw) return base;
-    const parsed = JSON.parse(raw);
-    const today = getTodayDateString();
-
-    if (parsed.currentDate !== today) {
-      parsed.currentDate = today;
-      parsed.todayLog = {
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('egy_nutritionist_state_v2');
+    if (!raw) {
+      base.logsByDate[base.selectedDate] = {
         meals: [],
         waterCups: 0,
         stretchBreaks: 0,
         supplementsTaken: {}
       };
+      return base;
     }
 
-    return {
+    const parsed = JSON.parse(raw);
+    const today = getTodayDateString();
+    const logsByDate = parsed.logsByDate || {};
+
+    // ترحيل سجل النسخة السابقة إذا وجد
+    if (parsed.todayLog && parsed.currentDate && !logsByDate[parsed.currentDate]) {
+      logsByDate[parsed.currentDate] = parsed.todayLog;
+    }
+
+    const merged = {
       ...base,
       ...parsed,
+      selectedDate: today,
+      logsByDate,
       profile: {
         ...base.profile,
         ...(parsed.profile || {}),
@@ -92,7 +124,7 @@ function loadState() {
           ...(parsed.profile?.targets || {})
         }
       },
-      foodsDb: Array.isArray(parsed.foodsDb) && parsed.foodsDb.length > 0 ? parsed.foodsDb : base.foodsDb,
+      foodsDb: Array.isArray(parsed.foodsDb) && parsed.foodsDb.length >= 30 ? parsed.foodsDb : base.foodsDb,
       supplementsList:
         Array.isArray(parsed.supplementsList) && parsed.supplementsList.length > 0
           ? parsed.supplementsList
@@ -100,6 +132,16 @@ function loadState() {
       reminders:
         Array.isArray(parsed.reminders) && parsed.reminders.length > 0 ? parsed.reminders : base.reminders
     };
+
+    if (!merged.logsByDate[merged.selectedDate]) {
+      merged.logsByDate[merged.selectedDate] = {
+        meals: [],
+        waterCups: 0,
+        stretchBreaks: 0,
+        supplementsTaken: {}
+      };
+    }
+    return merged;
   } catch (e) {
     console.error('Error loading state:', e);
     const fallback = structuredClone(DEFAULT_STATE);
@@ -118,11 +160,11 @@ function saveState() {
   }
 }
 
-function getTodayTotals() {
-  return state.todayLog.meals.reduce(
+function getTotalsForMeals(mealsArray) {
+  return (mealsArray || []).reduce(
     (acc, item) => {
       const m = Number(item.multiplier || 1);
-      const mealFat = Math.round((item.fats || 0) * m * 10) / 10;
+      const mealFat = Math.round((item.fats ?? item.fat ?? 0) * m * 10) / 10;
       acc.calories += Math.round((item.calories || 0) * m);
       acc.protein += Math.round((item.protein || 0) * m * 10) / 10;
       acc.carbs += Math.round((item.carbs || 0) * m * 10) / 10;
@@ -154,13 +196,95 @@ function getTodayTotals() {
   );
 }
 
-// تشخيص الخبير الذكي (يشمل حالة استئصال المرارة + الألياف + الشغل المكتبي)
+function getTodayTotals() {
+  return getTotalsForMeals(getCurrentDayLog().meals);
+}
+
+// تغيير التاريخ المختار (ميزة تطبيق أكلي FITNESS-APP-GEM)
+window.changeSelectedDate = function (newDateStr) {
+  if (!newDateStr) return;
+  state.selectedDate = newDateStr;
+  ensureDayLog(newDateStr);
+  saveState();
+  renderApp();
+};
+
+// نسخ وجبات اليوم السابق (ميزة تطبيق أكلي FITNESS-APP-GEM)
+window.copyYesterdayMeals = function () {
+  const prevDate = getPrevDateString(state.selectedDate);
+  const prevLog = state.logsByDate[prevDate];
+  if (!prevLog || !prevLog.meals || prevLog.meals.length === 0) {
+    showToast('لا توجد وجبات مسجلة في اليوم السابق لنسخها');
+    return;
+  }
+  const currLog = getCurrentDayLog();
+  prevLog.meals.forEach((m) => {
+    currLog.meals.push({
+      ...structuredClone(m),
+      logId: 'log_copy_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)
+    });
+  });
+  saveState();
+  showToast(`تم نسخ ${prevLog.meals.length} وجبات من يوم أمس بنجاح! ↻`);
+  renderApp();
+};
+
+// تنزيل ملف تذكير تقويم الآيفون (.ics) (ميزة تطبيق أكلي FITNESS-APP-GEM)
+window.downloadIcsCalendarReminder = function () {
+  const reminderTime = state.profile.reminderTime || '20:00';
+  const [h, m] = reminderTime.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h || 20, m || 0, 0, 0);
+  if (d < new Date()) d.setDate(d.getDate() + 1);
+
+  const dt =
+    getTodayDateString(d).replaceAll('-', '') +
+    'T' +
+    String(h || 20).padStart(2, '0') +
+    String(m || 0).padStart(2, '0') +
+    '00';
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//EgyNutritionistAkly//AR',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    'UID:egy-nutri-daily-' + Date.now() + '@local',
+    'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''),
+    'DTSTART:' + dt,
+    'DURATION:PT10M',
+    'RRULE:FREQ=DAILY',
+    'SUMMARY:متابعة خبير التغذية وأكلي اليومية 🥗💊',
+    'DESCRIPTION:سجل وجباتك، راجع الألياف وحد دهون المرارة، وخذ مكملاتك حسب موعدها.',
+    'BEGIN:VALARM',
+    'TRIGGER:PT0S',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:وقت متابعة أكلك ومكملاتك',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ];
+
+  const blob = new Blob([lines.join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'egyptian-nutritionist-reminder.ics';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('تم تنزيل ملف التقويم (.ics)! افتحه لإضافته لتقويم الآيفون 📅');
+};
+
+// تشخيص الخبير الذكي (يشمل استئصال المرارة + الألياف + الشغل المكتبي)
 function getSmartOfficeDiagnosis(totals) {
   const t = state.profile.targets;
   const p = state.profile;
+  const currLog = getCurrentDayLog();
   const alerts = [];
 
-  // 1. فحص خاص باستئصال المرارة (كمية الدهون في الوجبة الواحدة!)
   if (p.gallbladderRemoved) {
     const maxSafeFat = Number(p.maxFatPerMeal || 14);
     if (totals.maxSingleMealFat > maxSafeFat) {
@@ -168,22 +292,21 @@ function getSmartOfficeDiagnosis(totals) {
         type: 'danger',
         icon: '🩺',
         title: `تنبيه المرارة: وجبة دسمة تجاوزت ${maxSafeFat} جم دهون!`,
-        message: `وجبة "${totals.heaviestFatMealName}" فيها ${totals.maxSingleMealFat} جم دهون دفعة واحدة! لأنك شايل المرارة، الكبد يفرز العصارة الصفراوية ببطء ولا يستطيع هضم هذه الكمية مرة واحدة. الحل الآن: خذ كبسولة إنزيمات هاضمة/أملاح صفراء، كُل تفاحة أو شوفان أو سلطة (ألياف ذائبة لربط الصفراء)، واشرب ماء دافئ.`,
+        message: `وجبة "${totals.heaviestFatMealName}" فيها ${totals.maxSingleMealFat} جم دهون دفعة واحدة! لأنك شايل المرارة، الكبد يفرز العصارة الصفراوية ببطء. الحل الآن: خذ كبسولة إنزيمات هاضمة، كُل تفاحة أو شوفان أو سلطة (ألياف ذائبة لربط الصفراء)، واشرب ماء دافئ.`,
         actionLabel: 'عرض الأكلات المريحة بدون مرارة',
         actionTab: 'foods',
         actionCategory: 'gallbladder_safe'
       });
-    } else if (state.todayLog.meals.length > 0) {
+    } else if (currLog.meals.length > 0) {
       alerts.push({
         type: 'success',
         icon: '🩺',
         title: 'حالة الهضم بعد استئصال المرارة: آمنة وممتازة 💚',
-        message: `أعلى كمية دهون في وجبة واحدة النهاردة هي ${totals.maxSingleMealFat} جم (أقل من حد الأمان ${maxSafeFat} جم/وجبة). استمر في تقسيم وجباتك وأكل الألياف الذائبة!`
+        message: `أعلى كمية دهون في صنف واحد هي ${totals.maxSingleMealFat} جم (أقل من حد الأمان ${maxSafeFat} جم/وجبة). استمر في تقسيم وجباتك وأكل الألياف الذائبة!`
       });
     }
   }
 
-  // 2. فحص الألياف مقارنة بالسعرات
   const calRatio = totals.calories / Math.max(t.calories, 1);
   const fiberRatio = totals.fiber / Math.max(t.fiber, 1);
 
@@ -192,37 +315,19 @@ function getSmartOfficeDiagnosis(totals) {
       type: 'warning',
       icon: '🥗',
       title: 'تنبيه نقص الألياف (مهم للمرارة والشغل المكتبي)!',
-      message: `أخدت ${totals.calories} سعرة لكن الألياف ${totals.fiber.toFixed(1)} جم فقط (الهدف ${t.fiber} جم). الألياف الذائبة ضرورية جداً لامتصاص العصارة الصفراوية الزائدة ومنع إسهال المرارة والخمول المكتبي!`,
+      message: `أخدت ${totals.calories} سعرة لكن الألياف ${totals.fiber.toFixed(1)} جم فقط (الهدف ${t.fiber} جم). الألياف الذائبة (فول، عدس، شوفان، خضار، فاكهة) ضرورية لامتصاص العصارة الصفراوية ومنع الخمول المكتبي!`,
       actionLabel: 'أضف رافع ألياف سريع الآن',
       actionTab: 'foods',
-      actionCategory: 'fiber_boosters'
+      actionCategory: 'إضافات'
     });
   }
 
-  // 3. فحص الصوديوم
   if (totals.sodium > t.sodiumMax * 0.8) {
     alerts.push({
       type: 'danger',
       icon: '🧂',
-      title: 'الصوديوم والأملاح عالية النهاردة!',
+      title: 'الصوديوم والأملاح عالية في هذا اليوم!',
       message: `وصلت لـ ${totals.sodium} ملجم صوديوم. اشرب كوبايتين مية فوراً وكل خيار أو جرجير لمنع احتباس السوائل والصداع.`
-    });
-  }
-
-  // 4. فحص المكملات (الإنزيمات الهاضمة وفيتامين د3 وأوميجا 3)
-  const takenCount = state.supplementsList.filter((s) => state.todayLog.supplementsTaken[s.id]).length;
-  if (totals.calories > 250 && takenCount === 0) {
-    alerts.push({
-      type: 'info',
-      icon: '💊',
-      title: p.gallbladderRemoved
-        ? 'تذكير مكملات ما بعد المرارة والشغل المكتبي!'
-        : 'لا تنسَ مكملات الشغل المكتبي!',
-      message: p.gallbladderRemoved
-        ? 'طالما أكلت، تذكر أخذ الإنزيمات الهاضمة مع فيتامين د3 + ك2 وأوميجا 3 لضمان امتصاص الفيتامينات الذائبة في الدهون.'
-        : 'ده أنسب وقت تاخد فيتامين د3 وأوميجا 3 بعد الأكل لرفع تركيزك.',
-      actionLabel: 'سجل أو عدل مكملاتك الآن',
-      actionTab: 'supplements'
     });
   }
 
@@ -232,45 +337,111 @@ function getSmartOfficeDiagnosis(totals) {
       icon: '👨‍⚕️',
       title: p.gallbladderRemoved
         ? 'نظامك مضبوط على: شغل مكتبي + شايل المرارة 🩺'
-        : 'خبيرك الغذائي يتابع معك خطوة بخطوة',
-      message: 'اختر أكلتك من المنيو المصري أو فلتر "مريح بدون مرارة 💚"، وتذكر أن جميع البيانات والأكلات والمكملات قابلة للتعديل بضغطة زر!'
+        : 'يومك بتوازن — خطوة صغيرة كل يوم 🌿',
+      message: 'اختر أكلتك من المنيو المصري (أكثر من 48 أكلة شعبية وبيتية)، وحدد الوجبة (فطار • غدا • عشا • سناك) وتابع تقدمك الأسبوعي!'
     });
   }
 
   return alerts;
 }
 
-// إضافة أكلة لسجل اليوم
-window.addMealToLog = function (foodId, multiplier = 1, mealTiming = 'وجبة اليوم') {
+// نافذة اختيار الحصة والوجبة والتاريخ عند تسجيل أكلة (مثل تطبيق أكلي FITNESS-APP-GEM)
+window.openLogFoodDialog = function (foodId) {
   const food = state.foodsDb.find((f) => f.id === foodId);
   if (!food) return;
+  const defaultMealType = window.MEAL_TYPES.includes(food.category) ? food.category : 'غدا';
+
+  openModal(`
+    <div class="flex justify-between items-center border-b border-white/10 pb-2">
+      <h3 class="text-sm font-extrabold text-white">${food.emoji || '🍽️'} تسجيل: ${food.name}</h3>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+    </div>
+    <p class="text-[11px] text-slate-300">
+      الحصة القياسية: <strong>${food.serving}</strong> • ${food.calories} سعرة (${food.protein}جم بروتين • ${food.fats}جم دهون • ${food.fiber}جم ألياف)
+    </p>
+    ${
+      state.profile.gallbladderRemoved && food.gallbladderNote
+        ? `<div class="bg-sky-950/40 p-2.5 rounded-xl border border-sky-500/30 text-[11px] text-sky-200">
+            🩺 <strong>للمرارة:</strong> ${food.gallbladderNote}
+          </div>`
+        : ''
+    }
+    <form onsubmit="confirmAddMealToLog(event, '${food.id}')" class="space-y-3 text-xs">
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-slate-300 font-bold block mb-1">عدد الحصص</label>
+          <input id="log-dialog-qty" type="number" step="0.25" min="0.25" max="15" value="1" required class="w-full bg-slate-900 text-white rounded-xl px-3 py-2.5 border border-white/15" />
+        </div>
+        <div>
+          <label class="text-slate-300 font-bold block mb-1">نوع الوجبة</label>
+          <select id="log-dialog-mealtype" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2.5 border border-white/15">
+            ${window.MEAL_TYPES.map((m) => `<option value="${m}" ${m === defaultMealType ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-slate-300 font-bold block mb-1">التاريخ</label>
+        <input id="log-dialog-date" type="date" value="${state.selectedDate}" required class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="submit" class="ios-btn flex-1 bg-emerald-500 text-slate-950 font-extrabold py-2.5 rounded-xl">＋ حفظ في يومياتي</button>
+        <button type="button" onclick="closeModal()" class="ios-btn bg-slate-800 text-slate-300 font-bold px-4 py-2.5 rounded-xl">إلغاء</button>
+      </div>
+    </form>
+  `);
+};
+
+window.confirmAddMealToLog = function (event, foodId) {
+  event.preventDefault();
+  const qty = Number(document.getElementById('log-dialog-qty')?.value) || 1;
+  const mealType = document.getElementById('log-dialog-mealtype')?.value || 'غدا';
+  const targetDate = document.getElementById('log-dialog-date')?.value || state.selectedDate;
+  state.selectedDate = targetDate;
+  closeModal();
+  addMealToLog(foodId, qty, mealType);
+};
+
+// إضافة أكلة لسجل اليوم
+window.addMealToLog = function (foodId, multiplier = 1, mealTiming = null) {
+  const food = state.foodsDb.find((f) => f.id === foodId);
+  if (!food) return;
+  const resolvedMealType =
+    mealTiming && window.MEAL_TYPES.includes(mealTiming)
+      ? mealTiming
+      : window.MEAL_TYPES.includes(food.category)
+      ? food.category
+      : 'غدا';
+
   const mealFat = Math.round((food.fats || 0) * Number(multiplier) * 10) / 10;
   const entry = {
     ...structuredClone(food),
     logId: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     multiplier: Number(multiplier),
-    mealTiming,
+    mealTiming: resolvedMealType,
     timeAdded: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
   };
-  state.todayLog.meals.unshift(entry);
+
+  const currLog = getCurrentDayLog();
+  currLog.meals.unshift(entry);
   saveState();
 
   if (state.profile.gallbladderRemoved && mealFat > state.profile.maxFatPerMeal) {
     showToast(`⚠️ تنبيه المرارة: هذه الحصة تحتوي ${mealFat} جم دهون! يفضل تقليل الكمية أو أخذ إنزيمات هاضمة.`);
   } else {
-    showToast(`تم تسجيل "${food.name}" بنجاح ✅`);
+    showToast(`تم تسجيل "${food.name}" في وجبة (${resolvedMealType}) بنجاح ✅`);
   }
   renderApp();
 };
 
 window.removeMealFromLog = function (logId) {
-  state.todayLog.meals = state.todayLog.meals.filter((m) => m.logId !== logId);
+  const currLog = getCurrentDayLog();
+  currLog.meals = currLog.meals.filter((m) => m.logId !== logId);
   saveState();
   showToast('تم حذف الوجبة من سجل اليوم');
   renderApp();
 };
 
-// ===== نافذة التعديل الشاملة (Universal Edit Modal) لجعل كل البيانات قابلة للتعديل =====
+// ===== نافذة التعديل الشاملة (Universal Edit Modal) =====
 function openModal(htmlContent) {
   let modal = document.getElementById('universal-edit-modal');
   if (!modal) {
@@ -295,7 +466,8 @@ window.closeModal = function () {
 
 // 1. تعديل وجبة مسجلة في سجل اليوم
 window.openEditLoggedMealModal = function (logId) {
-  const meal = state.todayLog.meals.find((m) => m.logId === logId);
+  const currLog = getCurrentDayLog();
+  const meal = currLog.meals.find((m) => m.logId === logId);
   if (!meal) return;
   const mult = Number(meal.multiplier || 1);
   openModal(`
@@ -304,9 +476,17 @@ window.openEditLoggedMealModal = function (logId) {
       <button onclick="closeModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
     </div>
     <form onsubmit="saveEditedLoggedMeal(event, '${meal.logId}')" class="space-y-2.5 text-xs">
-      <div>
-        <label class="text-slate-300 font-bold block mb-1">اسم الوجبة</label>
-        <input id="edit-log-name" type="text" value="${meal.name}" required class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+      <div class="grid grid-cols-3 gap-2">
+        <div class="col-span-2">
+          <label class="text-slate-300 font-bold block mb-1">اسم الوجبة</label>
+          <input id="edit-log-name" type="text" value="${meal.name}" required class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+        </div>
+        <div>
+          <label class="text-slate-300 font-bold block mb-1">الوجبة</label>
+          <select id="edit-log-mealtype" class="w-full bg-slate-900 text-white rounded-xl px-2 py-2 border border-white/15">
+            ${window.MEAL_TYPES.map((mt) => `<option value="${mt}" ${meal.mealTiming === mt ? 'selected' : ''}>${mt}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
@@ -346,9 +526,11 @@ window.openEditLoggedMealModal = function (logId) {
 
 window.saveEditedLoggedMeal = function (event, logId) {
   event.preventDefault();
-  const meal = state.todayLog.meals.find((m) => m.logId === logId);
+  const currLog = getCurrentDayLog();
+  const meal = currLog.meals.find((m) => m.logId === logId);
   if (!meal) return;
   meal.name = document.getElementById('edit-log-name').value.trim();
+  meal.mealTiming = document.getElementById('edit-log-mealtype').value;
   meal.calories = Number(document.getElementById('edit-log-cal').value) || 0;
   meal.fiber = Number(document.getElementById('edit-log-fiber').value) || 0;
   meal.protein = Number(document.getElementById('edit-log-prot').value) || 0;
@@ -362,15 +544,16 @@ window.saveEditedLoggedMeal = function (event, logId) {
   renderApp();
 };
 
-// 2. تعديل أو إضافة أكلة في موسوعة الأكل المصري (Editable Food Database)
+// 2. تعديل أو إضافة أكلة في موسوعة الأكل المصري
 window.openEditFoodDbModal = function (foodId = null) {
   const isNew = !foodId;
   const food = isNew
     ? {
         id: 'custom_food_' + Date.now(),
         name: '',
-        category: 'home_traditional',
-        restaurantHint: 'أكلة مخصصة',
+        emoji: '🍽️',
+        category: 'غدا',
+        restaurantHint: 'أكلتي المخصصة ★',
         serving: 'حصة متوسطة',
         calories: 350,
         protein: 20,
@@ -381,10 +564,11 @@ window.openEditFoodDbModal = function (foodId = null) {
         iron: 2.5,
         calcium: 60,
         potassium: 400,
+        custom: true,
         officeImpact: 'energizing',
         gallbladderStatus: 'safe',
         gallbladderNote: 'دهون معتدلة ومناسبة لمن أزال المرارة.',
-        expertTip: 'وجبة متوازنة للشغل المكتبي.'
+        expertTip: 'وجبة مخصصة محفوظة في قسم أكلاتي ★.'
       }
     : state.foodsDb.find((f) => f.id === foodId);
 
@@ -392,30 +576,30 @@ window.openEditFoodDbModal = function (foodId = null) {
 
   openModal(`
     <div class="flex justify-between items-center border-b border-white/10 pb-2">
-      <h3 class="text-sm font-extrabold text-emerald-300">${isNew ? '➕ إضافة أكلة مصرية جديدة للمنيو' : '✏️ تعديل بيانات الأكلة في المنيو'}</h3>
+      <h3 class="text-sm font-extrabold text-emerald-300">${isNew ? '➕ إضافة أكلة مخصصة (أكلاتي ★)' : '✏️ تعديل بيانات الأكلة في المنيو'}</h3>
       <button onclick="closeModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
     </div>
     <form onsubmit="saveFoodDbItem(event, '${food.id}', ${isNew})" class="space-y-2.5 text-xs">
       <div>
         <label class="text-slate-300 font-bold block mb-1">اسم الأكلة</label>
-        <input id="db-food-name" type="text" value="${food.name}" required placeholder="مثلاً: طاجن بامية باللحمة المفرومة" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+        <input id="db-food-name" type="text" value="${food.name}" required placeholder="مثلاً: سندوتش كفتة بيتي" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="text-slate-300 font-bold block mb-1">المطعم / المصدر</label>
-          <input id="db-food-rest" type="text" value="${food.restaurantHint}" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+          <input id="db-food-rest" type="text" value="${food.restaurantHint || ''}" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
         </div>
         <div>
-          <label class="text-slate-300 font-bold block mb-1">حجم الحصة</label>
-          <input id="db-food-serving" type="text" value="${food.serving}" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+          <label class="text-slate-300 font-bold block mb-1">وصف الحصة</label>
+          <input id="db-food-serving" type="text" value="${food.serving || ''}" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
         </div>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <label class="text-slate-300 font-bold block mb-1">القسم</label>
+          <label class="text-slate-300 font-bold block mb-1">تصنيف الأكلة</label>
           <select id="db-food-cat" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15">
-            ${window.EGYPTIAN_FOOD_CATEGORIES.filter((c) => c.id !== 'all' && c.id !== 'gallbladder_safe')
-              .map((c) => `<option value="${c.id}" ${food.category === c.id ? 'selected' : ''}>${c.name}</option>`)
+            ${['فطار', 'غدا', 'سناك', 'إضافات']
+              .map((c) => `<option value="${c}" ${food.category === c ? 'selected' : ''}>${c}</option>`)
               .join('')}
           </select>
         </div>
@@ -473,9 +657,11 @@ window.openEditFoodDbModal = function (foodId = null) {
 
 window.saveFoodDbItem = function (event, foodId, isNew) {
   event.preventDefault();
+  const fatsVal = Number(document.getElementById('db-food-fats').value) || 0;
   const updated = {
     id: foodId,
     name: document.getElementById('db-food-name').value.trim(),
+    emoji: '🍽️',
     restaurantHint: document.getElementById('db-food-rest').value.trim(),
     serving: document.getElementById('db-food-serving').value.trim(),
     category: document.getElementById('db-food-cat').value,
@@ -484,12 +670,13 @@ window.saveFoodDbItem = function (event, foodId, isNew) {
     protein: Number(document.getElementById('db-food-prot').value) || 0,
     fiber: Number(document.getElementById('db-food-fiber').value) || 0,
     carbs: Number(document.getElementById('db-food-carbs').value) || 0,
-    fats: Number(document.getElementById('db-food-fats').value) || 0,
+    fats: fatsVal,
     sodium: 500,
     iron: 2.5,
     calcium: 60,
     potassium: 400,
-    officeImpact: Number(document.getElementById('db-food-fats').value) > 20 ? 'high-coma' : 'energizing',
+    custom: isNew ? true : undefined,
+    officeImpact: fatsVal > 20 ? 'high-coma' : 'energizing',
     gallbladderNote: document.getElementById('db-food-gb-note').value.trim(),
     expertTip: document.getElementById('db-food-tip').value.trim()
   };
@@ -502,7 +689,7 @@ window.saveFoodDbItem = function (event, foodId, isNew) {
   }
   saveState();
   closeModal();
-  showToast(isNew ? 'تمت إضافة الأكلة الجديدة للمنيو بنجاح! 🍽️' : 'تم حفظ تعديلات الأكلة بنجاح! ✅');
+  showToast(isNew ? 'تمت إضافة الأكلة في قسم (أكلاتي ★) بنجاح! 🍽️' : 'تم حفظ تعديلات الأكلة بنجاح! ✅');
   renderApp();
 };
 
@@ -514,7 +701,7 @@ window.deleteFoodDbItem = function (foodId) {
   renderApp();
 };
 
-// 3. تعديل أو إضافة أي مكمل غذائي (الافتراضي أو المخصص)
+// 3. تعديل أو إضافة أي مكمل غذائي
 window.openEditSupplementModal = function (suppId = null) {
   const isNew = !suppId;
   const supp = isNew
@@ -597,7 +784,6 @@ window.saveSupplementItem = function (event, suppId, isNew) {
 
 window.deleteSupplementItem = function (suppId) {
   state.supplementsList = state.supplementsList.filter((s) => s.id !== suppId);
-  delete state.todayLog.supplementsTaken[suppId];
   saveState();
   closeModal();
   showToast('تم حذف المكمل الغذائي');
@@ -628,7 +814,7 @@ window.openEditReminderModal = function (remId = null) {
     <form onsubmit="saveReminderItem(event, '${rem.id}', ${isNew})" class="space-y-2.5 text-xs">
       <div>
         <label class="text-slate-300 font-bold block mb-1">عنوان التذكير</label>
-        <input id="edit-rem-title" type="text" value="${rem.title}" required placeholder="مثلاً: أخذ كبسولة الإنزيمات الهاضمة" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
+        <input id="edit-rem-title" type="text" value="${rem.title}" required class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15" />
       </div>
       <div>
         <label class="text-emerald-300 font-bold block mb-1">التكرار كل كام دقيقة؟</label>
@@ -683,13 +869,13 @@ window.deleteReminderItem = function (remId) {
   renderApp();
 };
 
-// تحديث الماء والحركة
 window.updateHabit = function (key, delta) {
-  const next = Math.max(0, (state.todayLog[key] || 0) + delta);
-  state.todayLog[key] = next;
+  const currLog = getCurrentDayLog();
+  const next = Math.max(0, (currLog[key] || 0) + delta);
+  currLog[key] = next;
   saveState();
   if (delta > 0 && key === 'waterCups') {
-    showToast('عاش يا بطل! المية بتخفف العصارة الصفراوية وترفع التركيز 💧');
+    showToast(`عاش يا بطل! وصلت لـ ${next * 250} مل مية النهاردة 💧`);
   } else if (delta > 0 && key === 'stretchBreaks') {
     showToast('ممتاز! دقيقتين حركة بتريح القولون والظهر وتشغل الحرق 🚶‍♂️');
   }
@@ -697,8 +883,9 @@ window.updateHabit = function (key, delta) {
 };
 
 window.toggleSupplement = function (suppId) {
-  const current = !!state.todayLog.supplementsTaken[suppId];
-  state.todayLog.supplementsTaken[suppId] = !current;
+  const currLog = getCurrentDayLog();
+  const current = !!currLog.supplementsTaken[suppId];
+  currLog.supplementsTaken[suppId] = !current;
   saveState();
   if (!current) {
     showToast('برافو! تم تسجيل أخذ المكمل الغذائي 💊');
@@ -727,7 +914,7 @@ window.handleSearchInput = function (val) {
   renderFoodListOnly();
 };
 
-// المحلل الذكي للوجبات بالعامية المصرية (محدث لحالة استئصال المرارة + الشغل المكتبي)
+// المحلل الذكي للوجبات بالعامية المصرية
 async function analyzeEgyptianMealText(userText) {
   const apiKey = state.geminiApiKey?.trim();
   const gbText = state.profile.gallbladderRemoved
@@ -756,8 +943,8 @@ ${gbText}
   "potassium": 450,
   "officeImpact": "energizing أو moderate أو high-coma",
   "gallbladderStatus": "safe أو caution أو heavy_fat",
-  "gallbladderNote": "تقييم مدى ملاءمة دهون هذه الوجبة لمن أزال المرارة وكيف يعدلها لتجنب المغص أو الإسهال الصفراوي",
-  "replyText": "رد مصري ودود وعملي جداً يوضح: 1) هل الدهون في الوجبة آمنة للي شايل المرارة؟ 2) هل الألياف كافية؟ 3) نصيحة عملية فورية (مثل أخذ إنزيمات هاضمة، إضافة ألياف ذائبة كالشوفان/التفاح/السلطة، أو تقليل التومية/الزيت)."
+  "gallbladderNote": "تقييم مدى ملاءمة دهون هذه الوجبة لمن أزال المرارة",
+  "replyText": "رد مصري ودود وعملي جداً يوضح: 1) هل الدهون في الوجبة آمنة للي شايل المرارة؟ 2) هل الألياف كافية؟ 3) نصيحة عملية فورية."
 }`;
 
       const response = await fetch(
@@ -785,6 +972,7 @@ ${gbText}
             parsedMeal: {
               id: 'ai_meal_' + Date.now(),
               name: parsed.mealName || 'وجبة محللة بالذكاء الاصطناعي',
+              emoji: '🍽️',
               restaurantHint: 'تحليل الخبير الذكي (Gemini AI)',
               serving: parsed.serving || 'وجبة مخصصة',
               calories: Number(parsed.calories) || 350,
@@ -813,61 +1001,33 @@ ${gbText}
 }
 
 function localEgyptianMealParser(text) {
-  const normalized = text.trim();
+  const norm = window.normalizeArabic(text);
   const matchedFoods = [];
 
-  const keywordMap = [
-    { keys: ['فول'], foodId: 'foul_baladi_sandwich' },
-    { keys: ['طعمية', 'طعميه', 'فلافل'], foodId: 'taamia_sandwich' },
-    { keys: ['بيض', 'مسلوق'], foodId: 'foul_plate_eggs' },
-    { keys: ['بطاطس'], foodId: 'batates_syami_sandwich' },
-    { keys: ['جبنة قريش', 'جبنه قريش', 'قريش'], foodId: 'areesh_cheese_plate' },
-    { keys: ['كشري', 'كشرى'], foodId: 'koshary_medium_bowl' },
-    { keys: ['طاجن', 'مكرونة', 'مكرونه'], foodId: 'tagine_pasta_chicken' },
-    { keys: ['فرخة', 'فرخه', 'فراخ مشوية', 'فراخ مشويه', 'نص فرخة'], foodId: 'grilled_half_chicken' },
-    { keys: ['شاورما فراخ', 'شاورما سوري', 'شاورما'], foodId: 'shawarma_chicken_syrian' },
-    { keys: ['شاورما لحم', 'ابو حيدر', 'أبو حيدر'], foodId: 'shawarma_meat_kaiser' },
-    { keys: ['كفتة', 'كفته'], foodId: 'kofta_mashwia_quarter' },
-    { keys: ['شيش طاووق', 'شيش'], foodId: 'shish_tawook_meal' },
-    { keys: ['كبدة', 'كبده'], foodId: 'kebda_iskandarani_baladi' },
-    { keys: ['سجق'], foodId: 'sogo2_sharqi_sandwich' },
-    { keys: ['حواوشي', 'حواوشى'], foodId: 'hawawshi_baladi_loaf' },
-    { keys: ['سمك', 'بلطي', 'بوري'], foodId: 'grilled_bouri_or_bolti_fish' },
-    { keys: ['ملوخية', 'ملوخيه'], foodId: 'molokhia_with_chicken_rice' },
-    { keys: ['محشي', 'محشى', 'ورق عنب', 'كرنب'], foodId: 'mahshi_mixed_plate' },
-    { keys: ['تونة', 'تونه'], foodId: 'tuna_salad_bowl' },
-    { keys: ['سلطة', 'سلطه'], foodId: 'salata_baladi_large' },
-    { keys: ['جرجير', 'خيار', 'جزر'], foodId: 'gargeer_cucumber_bundle' },
-    { keys: ['ترمس', 'حمص'], foodId: 'termis_hommos_cup' },
-    { keys: ['تفاح', 'جوافة', 'جوافه', 'برتقال', 'فاكهة'], foodId: 'guava_apple_orange' },
-    { keys: ['زبادي', 'شوفان', 'شيا'], foodId: 'oats_chia_yogurt' },
-    { keys: ['قهوة', 'قهوه', 'نسكافيه', 'إسبريسو'], foodId: 'turkish_coffee_plain' },
-    { keys: ['مكسرات', 'لوز', 'عين جمل', 'سوداني'], foodId: 'raw_nuts_handful' },
-    { keys: ['قصب', 'عصير'], foodId: 'asab_sugarcane_juice' }
-  ];
-
-  let quantityMultiplier = 1;
-  if (normalized.includes('ساندوتشين') || normalized.includes('رغيفين') || normalized.includes('2 ') || normalized.includes('اتنين')) {
-    quantityMultiplier = 2;
-  } else if (normalized.includes('3 ') || normalized.includes('تلاتة') || normalized.includes('ثلاثة')) {
-    quantityMultiplier = 3;
-  } else if (normalized.includes('نص ') && !normalized.includes('نص فرخة')) {
-    quantityMultiplier = 0.6;
-  }
-
-  for (const entry of keywordMap) {
-    if (entry.keys.some((k) => normalized.includes(k))) {
-      const f = state.foodsDb.find((item) => item.id === entry.foodId);
-      if (f && !matchedFoods.some((m) => m.id === f.id)) {
+  for (const f of state.foodsDb) {
+    const fNameNorm = window.normalizeArabic(f.name.split('(')[0]);
+    const words = fNameNorm.split(' ').filter((w) => w.length >= 3);
+    if (words.length > 0 && words.some((w) => norm.includes(w))) {
+      if (!matchedFoods.some((m) => m.id === f.id) && matchedFoods.length < 4) {
         matchedFoods.push(f);
       }
     }
   }
 
+  let quantityMultiplier = 1;
+  if (norm.includes('ساندوتشين') || norm.includes('رغيفين') || norm.includes('2 ') || norm.includes('اتنين')) {
+    quantityMultiplier = 2;
+  } else if (norm.includes('3 ') || norm.includes('تلاته') || norm.includes('ثلاثه')) {
+    quantityMultiplier = 3;
+  } else if (norm.includes('نص ') && !norm.includes('نص فرخه')) {
+    quantityMultiplier = 0.6;
+  }
+
   if (matchedFoods.length === 0) {
     const estMeal = {
       id: 'custom_ai_' + Date.now(),
-      name: normalized.length > 42 ? normalized.slice(0, 42) + '...' : normalized,
+      name: text.trim().slice(0, 42),
+      emoji: '🍽️',
       restaurantHint: 'تقدير الخبير الغذائي المصري',
       serving: 'وجبة متوسطة',
       calories: 420,
@@ -885,7 +1045,7 @@ function localEgyptianMealParser(text) {
       expertTip: 'تقدر تضيفها لسجل يومك وتعدل أرقامها بحرية من زر التعديل ✏️!'
     };
     return {
-      replyText: `حسبتلك تقدير غذائي لـ **"${estMeal.name}"**: حوالي **${estMeal.calories} سعرة**، **${estMeal.protein} جم بروتين**، **${estMeal.fats} جم دهون**، و **${estMeal.fiber} جم ألياف**.\n🩺 **تقييم المرارة:** طالما الدهون في حدود ${state.profile.maxFatPerMeal} جم في الوجبة الواحدة فهي مريحة للهضم، ويفضل أكل خيار وجرجير أو تفاحة معها لربط الأحماض الصفراوية.`,
+      replyText: `حسبتلك تقدير غذائي لـ **"${estMeal.name}"**: حوالي **${estMeal.calories} سعرة**، **${estMeal.protein} جم بروتين**، **${estMeal.fats} جم دهون**، و **${estMeal.fiber} جم ألياف**.\n🩺 **تقييم المرارة:** طالما الدهون في حدود ${state.profile.maxFatPerMeal} جم في الوجبة الواحدة فهي مريحة للهضم.`,
       parsedMeal: estMeal
     };
   }
@@ -898,10 +1058,10 @@ function localEgyptianMealParser(text) {
       acc.carbs += Math.round(f.carbs * quantityMultiplier * 10) / 10;
       acc.fats += Math.round(f.fats * quantityMultiplier * 10) / 10;
       acc.fiber += Math.round(f.fiber * quantityMultiplier * 10) / 10;
-      acc.sodium += Math.round(f.sodium * quantityMultiplier);
-      acc.iron += Math.round(f.iron * quantityMultiplier * 10) / 10;
-      acc.calcium += Math.round(f.calcium * quantityMultiplier);
-      acc.potassium += Math.round(f.potassium * quantityMultiplier);
+      acc.sodium += Math.round((f.sodium || 450) * quantityMultiplier);
+      acc.iron += Math.round((f.iron || 2) * quantityMultiplier * 10) / 10;
+      acc.calcium += Math.round((f.calcium || 50) * quantityMultiplier);
+      acc.potassium += Math.round((f.potassium || 350) * quantityMultiplier);
       if (f.officeImpact === 'high-coma') acc.officeImpact = 'high-coma';
       if (f.gallbladderStatus === 'heavy_fat') acc.gallbladderStatus = 'heavy_fat';
       else if (f.gallbladderStatus === 'caution' && acc.gallbladderStatus !== 'heavy_fat') acc.gallbladderStatus = 'caution';
@@ -931,13 +1091,14 @@ function localEgyptianMealParser(text) {
   const maxSafeFat = Number(state.profile.maxFatPerMeal || 14);
   const gbEvaluation = state.profile.gallbladderRemoved
     ? combined.fats > maxSafeFat
-      ? `🔴 **تحذير هام لأنك شايل المرارة:** إجمالي الدهون في هذه الوجبة **${combined.fats} جم** (أعلى من الحد الآمن ${maxSafeFat} جم للوجبة الواحدة!). ده ممكن يسبب عسر هضم أو إسهال صفراوي. اقسم الوجبة على مرتين، أو خد كبسولة إنزيمات هاضمة وألياف ذائبة. (${combined.gbNotes[0] || ''})`
-      : `🟢 **آمن لـما بعد استئصال المرارة:** الدهون في هذه الوجبة **${combined.fats} جم** فقط (ضمن الحد الآمن ${maxSafeFat} جم/وجبة). ${combined.gbNotes[0] || ''}`
+      ? `🔴 **تحذير هام لأنك شايل المرارة:** إجمالي الدهون في هذه الوجبة **${combined.fats} جم** (أعلى من الحد الآمن ${maxSafeFat} جم للوجبة الواحدة!). اقسم الوجبة على مرتين أو خذ إنزيمات هاضمة وألياف ذائبة.`
+      : `🟢 **آمن لما بعد استئصال المرارة:** الدهون في هذه الوجبة **${combined.fats} جم** فقط (ضمن الحد الآمن ${maxSafeFat} جم/وجبة).`
     : '';
 
   const parsedMeal = {
     id: 'smart_parsed_' + Date.now(),
     name: mealTitle,
+    emoji: '🍽️',
     restaurantHint: 'تحليل الخبير المصري الذكي',
     serving: quantityMultiplier === 1 ? 'وجبة قياسية' : `الكمية × ${quantityMultiplier}`,
     calories: combined.calories,
@@ -994,12 +1155,12 @@ window.addAiParsedMeal = function (index) {
     ...item.parsedMeal,
     logId: 'log_ai_' + Date.now(),
     multiplier: 1,
-    mealTiming: 'وجبة محللة بالخبير الذكي',
+    mealTiming: 'غدا',
     timeAdded: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
   };
-  state.todayLog.meals.unshift(entry);
+  getCurrentDayLog().meals.unshift(entry);
   saveState();
-  showToast('تمت إضافة الوجبة المحللة لسجل يومك (ويمكنك تعديل أي رقم بها)! 🎉');
+  showToast('تمت إضافة الوجبة المحللة لسجل يومك! 🎉');
   renderApp();
 };
 
@@ -1012,27 +1173,30 @@ window.saveGeminiKey = function () {
   renderApp();
 };
 
-// حساب تلقائي للأهداف بناءً على الجسم وحالة استئصال المرارة
+// حاسبة الاحتياج اليومي Mifflin-St Jeor (تجمع بين حاسبة أكلي FITNESS-APP-GEM وحالة استئصال المرارة)
 window.recalculateAutoTargets = function () {
+  const gender = document.getElementById('prof-gender')?.value || state.profile.gender || 'male';
   const weight = Number(document.getElementById('prof-weight')?.value) || state.profile.weight;
   const height = Number(document.getElementById('prof-height')?.value) || state.profile.height;
   const age = Number(document.getElementById('prof-age')?.value) || state.profile.age;
+  const activity = document.getElementById('prof-activity')?.value || state.profile.activity || 'sedentary';
   const goal = document.getElementById('prof-goal')?.value || state.profile.goal;
   const gbRemoved = document.getElementById('prof-gb-removed')?.checked ?? state.profile.gallbladderRemoved;
 
-  const bmr = 10 * weight + 6.25 * height - 5 * age + 5;
-  const tdee = Math.round(bmr * 1.28);
+  const bmr = 10 * weight + 6.25 * height - 5 * age + (gender === 'female' ? -161 : 5);
+  const mult = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 }[activity] || 1.28;
+  let targetCal = Math.round(bmr * mult);
 
-  let targetCal = tdee;
-  if (goal === 'fat_loss') targetCal = Math.max(1400, tdee - 420);
-  if (goal === 'muscle') targetCal = tdee + 250;
+  if (goal === 'fat_loss') targetCal = Math.max(1200, targetCal - 400);
+  if (goal === 'muscle') targetCal += 300;
 
-  const protein = Math.round(weight * 1.65);
-  // لو شايل المرارة نخلي نسبة الدهون اليومية 22% فقط بدل 28% ونوزعها على 4 وجبات
-  const fatPct = gbRemoved ? 0.22 : 0.27;
+  const proteinFactor = goal === 'fat_loss' ? 1.75 : 1.55;
+  const protein = Math.round(weight * proteinFactor);
+  const fatPct = gbRemoved ? 0.22 : 0.28;
   const fats = Math.round((targetCal * fatPct) / 9);
-  const carbs = Math.max(90, Math.round((targetCal - protein * 4 - fats * 9) / 4));
-  const fiber = gbRemoved ? 32 : 30;
+  const carbs = Math.max(60, Math.round((targetCal - protein * 4 - fats * 9) / 4));
+  const fiber = Math.max(gbRemoved ? 30 : 25, Math.round((targetCal / 1000) * 15));
+  const waterCups = Math.max(8, Math.min(20, Math.round((weight * 35) / 250)));
   const maxFatPerMeal = gbRemoved ? Math.min(15, Math.round(fats / 3.8)) : 25;
 
   document.getElementById('prof-cal-target').value = targetCal;
@@ -1040,19 +1204,25 @@ window.recalculateAutoTargets = function () {
   document.getElementById('prof-carbs-target').value = carbs;
   document.getElementById('prof-fats-target').value = fats;
   document.getElementById('prof-fiber-target').value = fiber;
+  document.getElementById('prof-water-target').value = waterCups;
   document.getElementById('prof-max-meal-fat').value = maxFatPerMeal;
 
-  showToast('تم حساب الأرقام تلقائياً! اضغط "حفظ كافة البيانات" لتأكيدها 🧮');
+  showToast('تم حساب الأهداف المقترحة! اضغط «حفظ كافة البيانات» بالأسفل لاعتمادها 🧮');
 };
 
-// حفظ كافة إعدادات الحساب والحالة الصحية والأهداف القابلة للتعديل
 window.saveProfileSettings = function (event) {
   event.preventDefault();
   const name = document.getElementById('prof-name')?.value?.trim() || 'بطل الشغل المكتبي';
+  const gender = document.getElementById('prof-gender')?.value || 'male';
   const weight = Number(document.getElementById('prof-weight')?.value) || 80;
   const height = Number(document.getElementById('prof-height')?.value) || 175;
   const age = Number(document.getElementById('prof-age')?.value) || 30;
+  const activity = document.getElementById('prof-activity')?.value || 'sedentary';
   const workStyle = document.getElementById('prof-workstyle')?.value?.trim() || 'شغل مكتبي / ريموت';
+  const foodSource = document.getElementById('prof-foodsource')?.value?.trim() || 'مطاعم وأكل شارع';
+  const workStart = document.getElementById('prof-workstart')?.value || '09:00';
+  const workEnd = document.getElementById('prof-workend')?.value || '18:00';
+  const reminderTime = document.getElementById('prof-remindertime')?.value || '20:00';
   const goal = document.getElementById('prof-goal')?.value || 'fat_loss';
   const gallbladderRemoved = !!document.getElementById('prof-gb-removed')?.checked;
   const colonSensitive = !!document.getElementById('prof-colon-sensitive')?.checked;
@@ -1070,10 +1240,16 @@ window.saveProfileSettings = function (event) {
   state.profile = {
     ...state.profile,
     name,
+    gender,
     weight,
     height,
     age,
+    activity,
     workStyle,
+    foodSource,
+    workStart,
+    workEnd,
+    reminderTime,
     goal,
     gallbladderRemoved,
     colonSensitive,
@@ -1091,11 +1267,11 @@ window.saveProfileSettings = function (event) {
     }
   };
   saveState();
-  showToast('تم حفظ ملفك الصحي وأهدافك القابلة للتعديل بنجاح! ✅');
+  showToast('تم حفظ ملفك الصحي ومواعيد شغلك وأهدافك بنجاح! ✅');
   renderApp();
 };
 
-// تصدير واستيراد البيانات وإعادة الضبط
+// تصدير واستيراد البيانات (يدعم ملفاتنا وملفات تطبيق أكلي FITNESS-APP-GEM)
 window.exportUserData = function () {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(state, null, 2));
   const dlAnchor = document.createElement('a');
@@ -1114,6 +1290,37 @@ window.importUserData = function (event) {
   reader.onload = (e) => {
     try {
       const imported = JSON.parse(e.target.result);
+      // دعم استيراد نسخة احتياطية من تطبيق أكلي (FITNESS-APP-GEM)
+      if (imported && imported.version === 1 && Array.isArray(imported.entries)) {
+        imported.entries.forEach((en) => {
+          const dLog = ensureDayLog(en.date || getTodayDateString());
+          dLog.meals.push({
+            id: en.food.id || 'akly_' + Date.now(),
+            logId: en.id || 'log_' + Date.now(),
+            name: en.food.name,
+            emoji: en.food.emoji || '🍽️',
+            serving: en.food.portion || 'حصة',
+            calories: Number(en.food.calories) || 0,
+            protein: Number(en.food.protein) || 0,
+            carbs: Number(en.food.carbs) || 0,
+            fats: Number(en.food.fat ?? en.food.fats) || 0,
+            fiber: Number(en.food.fiber) || 0,
+            multiplier: Number(en.quantity) || 1,
+            mealTiming: en.meal || 'غدا',
+            timeAdded: 'مستورد'
+          });
+        });
+        if (imported.water) {
+          Object.entries(imported.water).forEach(([dt, cups]) => {
+            ensureDayLog(dt).waterCups = Number(cups) || 0;
+          });
+        }
+        saveState();
+        renderApp();
+        showToast('تم استيراد بياناتك من تطبيق (أكلي) بنجاح! 🎉');
+        return;
+      }
+
       if (imported && imported.profile) {
         state = { ...state, ...imported };
         saveState();
@@ -1137,7 +1344,7 @@ window.resetDefaultDatabase = function () {
   showToast('تمت استعادة البيانات الافتراضية بنجاح 🔄');
 };
 
-// نظام التذكيرات وإشعارات الآيفون
+// التذكيرات وإشعارات الآيفون
 window.toggleReminder = function (remId) {
   const rem = state.reminders.find((r) => r.id === remId);
   if (!rem) return;
@@ -1156,7 +1363,7 @@ window.requestNotificationPermission = async function () {
   const permission = await Notification.requestPermission();
   if (permission === 'granted') {
     showToast('تم تفعيل إشعارات الآيفون/المتصفح بنجاح! 🔔');
-    new Notification('خبير التغذية المصري 🥗', {
+    new Notification('خبير التغذية المصري & أكلي 🥗', {
       body: 'هفكرك بمواعيد المية، تقسيم الوجبات للمرارة، والحركة والمكملات في وقتها!',
       icon: './icon.svg'
     });
@@ -1181,9 +1388,7 @@ function fireReminderAlert(rem) {
         body: rem.description,
         icon: './icon.svg'
       });
-    } catch (e) {
-      console.log('Notification fallback to in-app toast');
-    }
+    } catch (e) {}
   }
 }
 
@@ -1232,8 +1437,9 @@ function showToast(msg) {
   }, 3400);
 }
 
-// ===== واجهة Dashboard (الرئيسية) =====
+// ===== 1. واجهة Dashboard (يومي - تجمع مميزات أكلي + خبير التغذية + استئصال المرارة) =====
 function renderDashboardView() {
+  const currLog = getCurrentDayLog();
   const totals = getTodayTotals();
   const targets = state.profile.targets;
   const p = state.profile;
@@ -1243,28 +1449,102 @@ function renderDashboardView() {
   const carbsPct = Math.min(100, Math.round((totals.carbs / targets.carbs) * 100));
   const fatsPct = Math.min(100, Math.round((totals.fats / targets.fats) * 100));
 
+  const prevDate = getPrevDateString(state.selectedDate);
+  const prevMealsCount = state.logsByDate[prevDate]?.meals?.length || 0;
+
   const alerts = getSmartOfficeDiagnosis(totals);
+
+  // تجميع الوجبات حسب النوع (فطار، غدا، عشا، سناك) مثل تطبيق أكلي + حساب دهون كل وجبة للمرارة
+  const groupedMealsHtml = window.MEAL_TYPES.map((mType) => {
+    const mList = currLog.meals.filter((m) => (m.mealTiming || 'غدا') === mType);
+    if (!mList.length) return '';
+    const groupTotals = getTotalsForMeals(mList);
+    const isGroupFatHigh = p.gallbladderRemoved && groupTotals.fats > p.maxFatPerMeal;
+
+    return `
+      <div class="bg-slate-900/50 rounded-2xl p-3 border ${
+        isGroupFatHigh ? 'border-rose-500/50' : 'border-white/10'
+      } space-y-2">
+        <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+          <span class="text-xs font-extrabold text-emerald-300">🍽️ ${mType} (${mList.length})</span>
+          <div class="text-[11px] text-slate-300">
+            <strong>${groupTotals.calories}</strong> سعرة •
+            <strong class="${isGroupFatHigh ? 'text-rose-400' : 'text-purple-300'}">${groupTotals.fats.toFixed(1)}جم دهون</strong> •
+            <strong class="text-emerald-300">${groupTotals.fiber.toFixed(1)}جم ألياف</strong>
+          </div>
+        </div>
+        ${
+          isGroupFatHigh
+            ? `<div class="text-[10px] bg-rose-950/40 text-rose-300 px-2.5 py-1 rounded-lg border border-rose-500/30">
+                ⚠️ مجموع دهون وجبة (${mType}) هو ${groupTotals.fats.toFixed(1)} جم (أعلى من حد أمان المرارة ${p.maxFatPerMeal} جم للوجبة الواحدة!). قلل الحصة أو خذ إنزيمات هاضمة.
+              </div>`
+            : ''
+        }
+        <div class="space-y-2">
+          ${mList
+            .map((m) => {
+              const mealFat = (m.fats * m.multiplier).toFixed(1);
+              return `
+              <div class="bg-slate-900/80 p-2.5 rounded-xl border border-white/5 flex items-start justify-between gap-2">
+                <div class="flex items-start gap-2 flex-1">
+                  <span class="text-lg mt-0.5">${m.emoji || '🍽️'}</span>
+                  <div class="flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-xs font-extrabold text-white">${m.name}</span>
+                      <span class="text-[10px] text-slate-400">(${m.multiplier} حصة)</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">
+                      🔥 ${Math.round(m.calories * m.multiplier)} سعرة • 🍗 ${Math.round(m.protein * m.multiplier)}ب • 🌾 <strong class="text-emerald-300">${(m.fiber * m.multiplier).toFixed(1)}ألياف</strong> • 🩺 <strong class="text-purple-300">${mealFat}دهون</strong>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button onclick="openEditLoggedMealModal('${m.logId}')" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[11px] px-2 py-1 rounded-lg font-bold" title="تعديل">
+                    ✎
+                  </button>
+                  <button onclick="removeMealFromLog('${m.logId}')" class="bg-slate-800/60 hover:bg-rose-950 text-slate-400 hover:text-rose-300 text-[11px] px-2 py-1 rounded-lg" title="حذف">
+                    ×
+                  </button>
+                </div>
+              </div>
+            `;
+            })
+            .join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
 
   return `
     <div class="space-y-4 pb-6">
-      <!-- بطاقة الترحيب والحالة الصحية القابلة للتعديل -->
+      <!-- شريط الترحيب واختيار التاريخ (من تطبيق أكلي FITNESS-APP-GEM) -->
       <div class="glass-card-highlight p-4">
-        <div class="flex items-start justify-between gap-2">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+              💻 ${p.workStyle}
+            </span>
+            ${
+              p.gallbladderRemoved
+                ? `<span class="bg-sky-500/20 text-sky-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-sky-400/40">
+                    🩺 شايل المرارة (حد الوجبة: ${p.maxFatPerMeal}جم دهون)
+                  </span>`
+                : ''
+            }
+          </div>
+          <!-- اختيار التاريخ -->
+          <input
+            type="date"
+            value="${state.selectedDate}"
+            onchange="changeSelectedDate(this.value)"
+            aria-label="تاريخ اليوميات"
+            class="bg-slate-900/90 text-emerald-300 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-emerald-500/30 focus:outline-none"
+          />
+        </div>
+        <div class="flex items-center justify-between gap-2">
           <div>
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                💻 ${p.workStyle}
-              </span>
-              ${
-                p.gallbladderRemoved
-                  ? `<span class="bg-sky-500/20 text-sky-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-sky-400/40">
-                      🩺 شايل المرارة (حد الدهون: ${p.maxFatPerMeal}جم/وجبة)
-                    </span>`
-                  : ''
-              }
-            </div>
-            <h2 class="text-base font-extrabold text-white mt-1.5">أهلاً يا ${p.name} 👋</h2>
-            <p class="text-[11px] text-slate-300 mt-0.5">${p.medicalNotes || 'نظامك الصحي قابل للتعديل بالكامل'}</p>
+            <h2 class="text-base font-extrabold text-white">يومك بتوازن يا ${p.name} 🌿</h2>
+            <p class="text-[11px] text-slate-300 mt-0.5">${p.medicalNotes || 'كل وجبة بتسجلها بتخليك فاهم جسمك وهضمك أكتر.'}</p>
           </div>
           <button onclick="switchTab('profile')" class="ios-btn bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] px-3 py-2 rounded-xl whitespace-nowrap">
             ✏️ تعديل حالتي
@@ -1291,7 +1571,7 @@ function renderDashboardView() {
             }" style="width: ${calPct}%"></div>
           </div>
           <p class="text-[11px] text-slate-400 mt-2">
-            المتبقي اليوم: <strong class="text-emerald-300">${Math.max(0, targets.calories - totals.calories)} سعرة</strong>
+            المتبقي: <strong class="text-emerald-300">${Math.max(0, targets.calories - totals.calories)} سعرة</strong>
           </p>
         </div>
 
@@ -1300,7 +1580,7 @@ function renderDashboardView() {
         }">
           <div class="flex justify-between items-start mb-2">
             <div>
-              <span class="text-xs text-emerald-300 font-bold">عداد الألياف (للمرارة!)</span>
+              <span class="text-xs text-emerald-300 font-bold">الألياف (للمرارة والشبع)</span>
               <div class="text-2xl font-extrabold text-white mt-0.5">
                 ${totals.fiber.toFixed(1)}<span class="text-xs font-normal text-slate-400"> / ${targets.fiber} جم</span>
               </div>
@@ -1312,7 +1592,7 @@ function renderDashboardView() {
           </div>
           <div class="flex justify-between items-center mt-2">
             <span class="text-[10px] text-slate-300">تربط العصارة الصفراوية</span>
-            <button onclick="switchTab('foods', 'fiber_boosters')" class="text-[11px] text-emerald-400 font-bold underline">
+            <button onclick="switchTab('foods', 'إضافات')" class="text-[11px] text-emerald-400 font-bold underline">
               + زود ألياف
             </button>
           </div>
@@ -1322,8 +1602,8 @@ function renderDashboardView() {
       <!-- الماكروز + مؤشر دهون المرارة -->
       <div class="glass-card p-4">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-bold text-slate-300">⚖️ العناصر الغذائية الكبرى ومؤشر دهون المرارة</h3>
-          <button onclick="switchTab('profile')" class="text-[11px] text-emerald-400 underline">✏️ تعديل الأهداف</button>
+          <h3 class="text-xs font-bold text-slate-300">⚖️ البروتين • الكارب • الدهون</h3>
+          <button onclick="switchTab('insights')" class="text-[11px] text-emerald-400 font-bold underline">📈 إحصائيات آخر 7 أيام</button>
         </div>
         <div class="grid grid-cols-3 gap-2.5 text-center">
           <div class="bg-slate-900/60 p-2.5 rounded-xl border border-white/5">
@@ -1354,33 +1634,14 @@ function renderDashboardView() {
               p.gallbladderRemoved
                 ? `<div class="text-[9px] mt-1 ${
                     totals.maxSingleMealFat > p.maxFatPerMeal ? 'text-rose-300 font-bold' : 'text-emerald-300'
-                  }">أقصى وجبة: ${totals.maxSingleMealFat} / ${p.maxFatPerMeal}جم</div>`
+                  }">أقصى صنف: ${totals.maxSingleMealFat} / ${p.maxFatPerMeal}جم</div>`
                 : ''
             }
           </div>
         </div>
-
-        <div class="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-white/10 text-center">
-          <div>
-            <div class="text-[10px] text-slate-400">حديد (تركيز)</div>
-            <div class="text-xs font-bold text-emerald-300">${totals.iron.toFixed(1)} / ${targets.iron} ملجم</div>
-          </div>
-          <div>
-            <div class="text-[10px] text-slate-400">كالسيوم</div>
-            <div class="text-xs font-bold text-sky-300">${totals.calcium} / ${targets.calcium}</div>
-          </div>
-          <div>
-            <div class="text-[10px] text-slate-400">بوتاسيوم</div>
-            <div class="text-xs font-bold text-teal-300">${totals.potassium} ملجم</div>
-          </div>
-          <div>
-            <div class="text-[10px] text-slate-400">صوديوم (ملح)</div>
-            <div class="text-xs font-bold ${totals.sodium > targets.sodiumMax ? 'text-rose-400' : 'text-amber-300'}">${totals.sodium} / ${targets.sodiumMax}</div>
-          </div>
-        </div>
       </div>
 
-      <!-- تشخيص الخبير الفوري لليوم -->
+      <!-- تشخيص الخبير الفوري -->
       <div class="space-y-2.5">
         ${alerts
           .map(
@@ -1415,128 +1676,126 @@ function renderDashboardView() {
           .join('')}
       </div>
 
-      <!-- عادات المكتب اليومية -->
+      <!-- وجباتك النهاردة مقسمة (فطار • غدا • عشا • سناك) + زر نسخ وجبات امبارح -->
+      <div class="glass-card p-4 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-sm font-extrabold text-white">🍽️ وجباتك المسجلة (${currLog.meals.length})</h3>
+          <div class="flex items-center gap-1.5">
+            ${
+              currLog.meals.length === 0 && prevMealsCount > 0
+                ? `<button onclick="copyYesterdayMeals()" class="ios-btn bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-[11px] font-bold px-2.5 py-1.5 rounded-xl">
+                    ↻ نسخ امبارح (${prevMealsCount})
+                  </button>`
+                : ''
+            }
+            <button onclick="switchTab('foods')" class="ios-btn bg-emerald-500 text-slate-950 text-xs font-extrabold px-3 py-1.5 rounded-xl">
+              ＋ أضف وجبة
+            </button>
+          </div>
+        </div>
+
+        ${
+          currLog.meals.length === 0
+            ? `
+          <div class="text-center py-6 bg-slate-900/40 rounded-2xl border border-dashed border-slate-700">
+            <div class="text-3xl mb-2">🥙🍲🍗</div>
+            <p class="text-xs text-slate-300 font-semibold">لسه مفيش وجبات مسجلة في هذا اليوم.</p>
+            <p class="text-[11px] text-slate-400 mt-1">الفول والطعمية والكشري والمحشي والمشويات موجودين هنا مع تقييم المرارة.</p>
+            <div class="flex justify-center gap-2 mt-3">
+              <button onclick="switchTab('foods', 'gallbladder_safe')" class="ios-btn bg-emerald-500 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl">
+                💚 أكلات مريحة بدون مرارة
+              </button>
+              ${
+                prevMealsCount > 0
+                  ? `<button onclick="copyYesterdayMeals()" class="ios-btn bg-slate-800 text-amber-300 font-bold text-xs px-3.5 py-2 rounded-xl border border-amber-500/30">
+                      ↻ نسخ وجبات امبارح (${prevMealsCount})
+                    </button>`
+                  : `<button onclick="switchTab('ai')" class="ios-btn bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/10">
+                      🤖 اكتب وجبتك بالعامية
+                    </button>`
+              }
+            </div>
+          </div>
+        `
+            : `<div class="space-y-3">${groupedMealsHtml}</div>`
+        }
+      </div>
+
+      <!-- شرب المية (بالمللي والأكواب 250 مل) + قومة المكتب -->
       <div class="grid grid-cols-2 gap-3">
         <div class="glass-card p-3.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-bold text-sky-300">💧 شرب المية</span>
-            <span class="text-xs font-extrabold text-white">${state.todayLog.waterCups} / ${targets.waterCups} أكواب</span>
+            <span class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full font-bold">${currLog.waterCups * 250} مل</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">يخفف العصارة الصفراوية ويمنع الصداع</p>
+          <div class="text-sm font-extrabold text-white mt-1">${currLog.waterCups} <span class="text-[11px] font-normal text-slate-400">/ ${targets.waterCups} أكواب (250مل)</span></div>
           <div class="flex items-center gap-2 mt-2.5">
             <button onclick="updateHabit('waterCups', 1)" class="ios-btn flex-1 bg-sky-500/25 hover:bg-sky-500/35 border border-sky-400/40 text-sky-200 font-bold text-xs py-2 rounded-xl">
-              + شربت كوباية
+              ＋ كوب
             </button>
             <button onclick="updateHabit('waterCups', -1)" class="ios-btn bg-slate-800 text-slate-400 font-bold text-xs px-3 py-2 rounded-xl">
-              -
+              −
             </button>
           </div>
         </div>
 
         <div class="glass-card p-3.5">
           <div class="flex justify-between items-center">
-            <span class="text-xs font-bold text-amber-300">🚶‍♂️ قومة المكتب والهضم</span>
-            <span class="text-xs font-extrabold text-white">${state.todayLog.stretchBreaks} / ${targets.stretchBreaks} مرات</span>
+            <span class="text-xs font-bold text-amber-300">🚶‍♂️ حركة المكتب</span>
+            <span class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">هضم ونشاط</span>
           </div>
-          <p class="text-[11px] text-slate-400 mt-1">يمنع الغازات والارتجاع مع الجلوس</p>
+          <div class="text-sm font-extrabold text-white mt-1">${currLog.stretchBreaks} <span class="text-[11px] font-normal text-slate-400">/ ${targets.stretchBreaks} فواصل حركة</span></div>
           <div class="flex items-center gap-2 mt-2.5">
             <button onclick="updateHabit('stretchBreaks', 1)" class="ios-btn flex-1 bg-amber-500/25 hover:bg-amber-500/35 border border-amber-400/40 text-amber-200 font-bold text-xs py-2 rounded-xl">
-              + قمت اتحركت
+              ＋ قمت اتحركت
             </button>
             <button onclick="updateHabit('stretchBreaks', -1)" class="ios-btn bg-slate-800 text-slate-400 font-bold text-xs px-3 py-2 rounded-xl">
-              -
+              −
             </button>
           </div>
         </div>
       </div>
 
-      <!-- سجل الوجبات اليومي (مع إمكانية تعديل أي وجبة مسجلة!) -->
-      <div class="glass-card p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-extrabold text-white flex items-center gap-1.5">
-            <span>📋</span>
-            <span>سجل وجبات اليوم (${state.todayLog.meals.length})</span>
-          </h3>
-          <button onclick="switchTab('foods')" class="ios-btn bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold px-3 py-1.5 rounded-xl">
-            + سجل أكلة
-          </button>
+      <!-- بطاقة "وسط يوم الشغل ☀️" + تذكير تقويم الآيفون (.ics) من تطبيق أكلي -->
+      <div class="glass-card p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold text-amber-300">☀️ وسط يوم الشغل (${p.workStart || '09:00'} – ${p.workEnd || '18:00'})</h3>
+          <span class="text-[10px] text-slate-400">أكلك غالباً: ${p.foodSource || 'مطاعم وشارع'}</span>
         </div>
-
-        ${
-          state.todayLog.meals.length === 0
-            ? `
-          <div class="text-center py-6 bg-slate-900/40 rounded-2xl border border-dashed border-slate-700">
-            <div class="text-3xl mb-2">🥙🩺🍗</div>
-            <p class="text-xs text-slate-300 font-semibold">لسه ما سجلتش أكل النهاردة!</p>
-            <p class="text-[11px] text-slate-400 mt-1">اختار من الأكلات المريحة بدون مرارة أو اكتب وجبتك للخبير الذكي</p>
-            <div class="flex justify-center gap-2 mt-3">
-              <button onclick="switchTab('foods', 'gallbladder_safe')" class="ios-btn bg-emerald-500 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl">
-                💚 أكلات مريحة بدون مرارة
-              </button>
-              <button onclick="switchTab('ai')" class="ios-btn bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-white/10">
-                🤖 اكتب وجبتك بالعامية
-              </button>
-            </div>
-          </div>
-        `
-            : `
-          <div class="space-y-2.5">
-            ${state.todayLog.meals
-              .map((m) => {
-                const mealFat = (m.fats * m.multiplier).toFixed(1);
-                const isHeavyFat = p.gallbladderRemoved && Number(mealFat) > p.maxFatPerMeal;
-                return `
-              <div class="bg-slate-900/70 p-3 rounded-2xl border ${
-                isHeavyFat ? 'border-rose-500/50' : 'border-white/5'
-              } flex items-start justify-between gap-2">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md">${m.timeAdded}</span>
-                    <span class="text-xs font-extrabold text-white">${m.name}</span>
-                  </div>
-                  <div class="text-[11px] text-slate-400 mt-1">
-                    🔥 ${Math.round(m.calories * m.multiplier)} سعرة • 🍗 ${Math.round(m.protein * m.multiplier)}جم بروتين • 🌾 <strong class="text-emerald-300">${(m.fiber * m.multiplier).toFixed(1)}جم ألياف</strong> • 🩺 <strong class="${isHeavyFat ? 'text-rose-400' : 'text-purple-300'}">${mealFat}جم دهون</strong>
-                  </div>
-                  ${
-                    p.gallbladderRemoved && m.gallbladderNote
-                      ? `<p class="text-[11px] text-sky-300 mt-1.5 bg-sky-950/30 p-2 rounded-lg border border-sky-500/20">🩺 <strong>للمرارة:</strong> ${m.gallbladderNote}</p>`
-                      : ''
-                  }
-                </div>
-                <div class="flex flex-col gap-1">
-                  <button onclick="openEditLoggedMealModal('${m.logId}')" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[11px] px-2.5 py-1 rounded-lg font-bold">
-                    ✏️ تعديل
-                  </button>
-                  <button onclick="removeMealFromLog('${m.logId}')" class="bg-slate-800/60 hover:bg-rose-950 text-slate-400 hover:text-rose-300 text-[11px] px-2.5 py-1 rounded-lg">
-                    حذف ✕
-                  </button>
-                </div>
-              </div>
-            `;
-              })
-              .join('')}
-          </div>
-        `
-        }
+        <div class="bg-slate-900/70 p-2.5 rounded-xl border border-white/5 text-xs text-slate-300 leading-relaxed">
+          ${
+            (p.foodSource || '').includes('بيت')
+              ? 'جهّز وجبة سهلة من البيت مقسمة على حصتين قبل بداية الشغل، وسجل الكمية الفعلية.'
+              : 'لو هتاكل بره أو دليفري وأنت شايل المرارة: اختار مشويات أو فول/كشري بدون تقلية، وزوّد سلطة خضراء، واطلب الطحينة أو التومية منفصلة.'
+          }
+        </div>
+        <button
+          onclick="downloadIcsCalendarReminder()"
+          class="ios-btn w-full bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+        >
+          <span>📅</span>
+          <span>أضف تذكير يومي (${p.reminderTime || '20:00'}) لتقويم الآيفون (.ics)</span>
+        </button>
       </div>
     </div>
   `;
 }
 
-// ===== واجهة دليل أكل الشارع والمطاعم المصرية (قابلة للتعديل والإضافة) =====
+// ===== 2. واجهة موسوعة الأكل المصري (تضم البحث العربي الذكي normalizeArabic + كل أكلات أكلي) =====
 function getFilteredFoods() {
-  const q = state.searchQuery.trim().toLowerCase();
+  const q = window.normalizeArabic(state.searchQuery);
   return state.foodsDb.filter((food) => {
     const matchCat =
       state.selectedCategory === 'all' ||
       (state.selectedCategory === 'gallbladder_safe' && food.gallbladderStatus === 'safe') ||
+      (state.selectedCategory === 'custom_only' && food.custom) ||
       food.category === state.selectedCategory;
     const matchQuery =
       !q ||
-      food.name.toLowerCase().includes(q) ||
-      (food.restaurantHint || '').toLowerCase().includes(q) ||
-      (food.expertTip || '').toLowerCase().includes(q) ||
-      (food.gallbladderNote || '').toLowerCase().includes(q);
+      window.normalizeArabic(food.name).includes(q) ||
+      window.normalizeArabic(food.serving).includes(q) ||
+      window.normalizeArabic(food.restaurantHint).includes(q) ||
+      window.normalizeArabic(food.gallbladderNote).includes(q);
     return matchCat && matchQuery;
   });
 }
@@ -1546,11 +1805,11 @@ function renderFoodCardsList(foods) {
     return `
       <div class="glass-card p-6 text-center space-y-3">
         <div class="text-3xl">🔍</div>
-        <p class="text-sm font-bold text-white">ملقيتش الأكلة دي في المنيو؟</p>
-        <p class="text-xs text-slate-400">تقدر تضيفها بنفسك للمنيو فوراً أو تكتبها للخبير الذكي!</p>
+        <p class="text-sm font-bold text-white">مش موجودة في البحث؟</p>
+        <p class="text-xs text-slate-400">اضغط «＋ أكلة مخصصة» لحفظها في قسم (أكلاتي ★) أو حللها بالخبير الذكي!</p>
         <div class="flex justify-center gap-2">
           <button onclick="openEditFoodDbModal(null)" class="ios-btn bg-emerald-500 text-slate-950 font-extrabold text-xs px-4 py-2.5 rounded-xl">
-            ➕ أضف أكلة جديدة للمنيو
+            ＋ أكلة مخصصة
           </button>
           <button onclick="switchTab('ai')" class="ios-btn bg-slate-800 text-emerald-300 font-bold text-xs px-4 py-2.5 rounded-xl border border-emerald-500/30">
             🤖 حلل بالذكاء الاصطناعي
@@ -1575,13 +1834,13 @@ function renderFoodCardsList(foods) {
         <div class="flex-1">
           <div class="flex flex-wrap items-center gap-1.5">
             <span class="text-[10px] font-bold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/20">
-              📍 ${food.restaurantHint}
+              ${food.custom ? '★ أكلتي المخصصة' : '📍 ' + (food.restaurantHint || food.category)}
             </span>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${gbBadge.cls}">
               ${gbBadge.label}
             </span>
           </div>
-          <h4 class="text-sm font-extrabold text-white mt-1.5">${food.name}</h4>
+          <h4 class="text-sm font-extrabold text-white mt-1.5">${food.emoji || '🍽️'} ${food.name}</h4>
           <p class="text-[11px] text-slate-400">الحصة: ${food.serving}</p>
         </div>
         <button
@@ -1592,7 +1851,6 @@ function renderFoodCardsList(foods) {
         </button>
       </div>
 
-      <!-- الأرقام الغذائية -->
       <div class="grid grid-cols-5 gap-1.5 bg-slate-900/75 p-2.5 rounded-xl text-center border border-white/5">
         <div>
           <div class="text-[10px] text-slate-400">سعرات</div>
@@ -1621,22 +1879,17 @@ function renderFoodCardsList(foods) {
       ${
         food.gallbladderNote
           ? `<div class="bg-sky-950/35 p-2.5 rounded-xl border border-sky-500/25 text-xs text-sky-100 leading-relaxed">
-              <strong class="text-sky-300">🩺 نصيحة ما بعد استئصال المرارة:</strong> ${food.gallbladderNote}
+              <strong class="text-sky-300">🩺 للمرارة:</strong> ${food.gallbladderNote}
             </div>`
           : ''
       }
 
-      <div class="bg-slate-900/50 p-2.5 rounded-xl border border-emerald-500/20 text-xs text-slate-200 leading-relaxed">
-        <strong class="text-emerald-400">💡 نصيحة الشغل:</strong> ${food.expertTip}
-      </div>
-
-      <!-- أزرار الإضافة السريعة -->
       <div class="flex items-center gap-2 pt-1">
-        <button onclick="addMealToLog('${food.id}', 1)" class="ios-btn flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-2.5 rounded-xl shadow">
-          + سجل حصة كاملة
+        <button onclick="openLogFoodDialog('${food.id}')" class="ios-btn flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-2.5 rounded-xl shadow">
+          ＋ سجل الوجبة (اختر الحصة والنوع)
         </button>
-        <button onclick="addMealToLog('${food.id}', 0.5)" class="ios-btn bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3 py-2.5 rounded-xl border border-white/10">
-          + نصف حصة (${(food.fats * 0.5).toFixed(1)}جم دهون)
+        <button onclick="addMealToLog('${food.id}', 1)" class="ios-btn bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs px-3 py-2.5 rounded-xl border border-emerald-500/30">
+          سريع +1
         </button>
       </div>
     </div>
@@ -1659,14 +1912,14 @@ function renderFoodsView() {
       <div class="glass-card p-4">
         <div class="flex items-center justify-between gap-2">
           <div>
-            <h2 class="text-base font-extrabold text-white">🥙 موسوعة الأكل المصري (قابلة للتعديل)</h2>
-            <p class="text-[11px] text-slate-300 mt-0.5">مزودة بتقييم الدهون لما بعد استئصال المرارة + إمكانية تعديل وإضافة أي أكلة</p>
+            <h2 class="text-base font-extrabold text-white">🥙 سجل أكلك (${state.foodsDb.length} أكلة مصرية)</h2>
+            <p class="text-[11px] text-slate-300 mt-0.5">أكلات مصرية بنحبها + تقييم المرارة + تعديل وإضافة</p>
           </div>
           <button
             onclick="openEditFoodDbModal(null)"
             class="ios-btn bg-emerald-500 text-slate-950 font-extrabold text-xs px-3 py-2 rounded-xl whitespace-nowrap shadow"
           >
-            ➕ أضف أكلة
+            ＋ أكلة مخصصة
           </button>
         </div>
         
@@ -1675,7 +1928,7 @@ function renderFoodsView() {
             type="text"
             value="${state.searchQuery}"
             oninput="handleSearchInput(this.value)"
-            placeholder="ابحث عن أكلة أو مطعم (مثلاً: كشري، جاد، شاورما، ملوخية، شوفان)..."
+            placeholder="دور على فول، كشري، محشي، شاورما، جبنة، بليلة، عدس..."
             class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-4 py-3 border border-white/15 focus:outline-none focus:border-emerald-400"
           />
         </div>
@@ -1706,7 +1959,103 @@ function renderFoodsView() {
   `;
 }
 
-// ===== واجهة الخبير الذكي (AI Nutritionist) =====
+// ===== 3. واجهة "متابعتي / إحصائيات آخر 7 أيام" (ميزة تطبيق أكلي FITNESS-APP-GEM) =====
+function renderInsightsView() {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6 + i);
+    const key = getTodayDateString(d);
+    const dayLog = state.logsByDate[key] || { meals: [], waterCups: 0, stretchBreaks: 0 };
+    const dayTotals = getTotalsForMeals(dayLog.meals);
+    return {
+      key,
+      label: d.toLocaleDateString('ar-EG', { weekday: 'short' }),
+      count: dayLog.meals.length,
+      waterCups: dayLog.waterCups || 0,
+      ...dayTotals
+    };
+  });
+
+  const loggedDays = days.filter((d) => d.count > 0);
+  const avgCalories = loggedDays.length ? Math.round(loggedDays.reduce((s, d) => s + d.calories, 0) / loggedDays.length) : 0;
+  const avgProtein = loggedDays.length ? Math.round(loggedDays.reduce((s, d) => s + d.protein, 0) / loggedDays.length) : 0;
+  const avgFiber = loggedDays.length ? (loggedDays.reduce((s, d) => s + d.fiber, 0) / loggedDays.length).toFixed(1) : 0;
+  const avgFats = loggedDays.length ? Math.round(loggedDays.reduce((s, d) => s + d.fats, 0) / loggedDays.length) : 0;
+  const maxCal = Math.max(state.profile.targets.calories, ...days.map((d) => d.calories), 1);
+
+  return `
+    <div class="space-y-4 pb-6">
+      <div class="glass-card-highlight p-4">
+        <h2 class="text-base font-extrabold text-white">📈 صورة أوضح لأسبوعك (آخر 7 أيام)</h2>
+        <p class="text-xs text-slate-300 mt-0.5">متابعة السعرات، البروتين، الألياف، والدهون من تسجيلاتك الفعلية</p>
+      </div>
+
+      <!-- رسم بياني بالأعمدة لآخر 7 أيام (من تطبيق أكلي) -->
+      <div class="glass-card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold text-white">📊 السعرات المسجلة خلال 7 أيام</h3>
+          <span class="text-[11px] text-emerald-300 font-bold">${loggedDays.length} أيام مسجلة</span>
+        </div>
+
+        <div class="grid grid-cols-7 gap-2 items-end h-36 pt-4 px-1 bg-slate-900/60 rounded-2xl p-3 border border-white/5">
+          ${days
+            .map((d) => {
+              const barHeight = d.count ? Math.max(12, Math.round((d.calories / maxCal) * 90)) : 4;
+              const isSelected = d.key === state.selectedDate;
+              return `
+              <div onclick="changeSelectedDate('${d.key}'); switchTab('dashboard')" class="flex flex-col items-center cursor-pointer">
+                <span class="text-[9px] text-slate-300 font-bold mb-1">${d.count ? d.calories : '—'}</span>
+                <div class="w-full max-w-[26px] rounded-t-lg transition-all ${
+                  isSelected
+                    ? 'bg-emerald-400'
+                    : d.calories > state.profile.targets.calories
+                    ? 'bg-rose-400/80'
+                    : 'bg-teal-500/70'
+                }" style="height: ${barHeight}px"></div>
+                <span class="text-[10px] mt-1.5 font-bold ${isSelected ? 'text-emerald-300 underline' : 'text-slate-400'}">${d.label}</span>
+              </div>
+            `;
+            })
+            .join('')}
+        </div>
+        <p class="text-[11px] text-slate-400">اضغط على أي يوم في الرسم البياني لفتح سجله أو تعديل وجباته.</p>
+      </div>
+
+      <!-- متوسطات الأسبوع -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="glass-card p-3.5">
+          <span class="text-[11px] text-slate-400">متوسط السعرات / يوم مسجل</span>
+          <div class="text-xl font-extrabold text-white mt-1">${avgCalories} <span class="text-xs font-normal text-slate-400">سعرة</span></div>
+          <span class="text-[10px] text-emerald-300">الهدف: ${state.profile.targets.calories} سعرة</span>
+        </div>
+        <div class="glass-card p-3.5">
+          <span class="text-[11px] text-slate-400">متوسط الألياف / يوم مسجل 🌾</span>
+          <div class="text-xl font-extrabold text-emerald-300 mt-1">${avgFiber} <span class="text-xs font-normal text-slate-400">جم</span></div>
+          <span class="text-[10px] text-slate-300">الهدف: ${state.profile.targets.fiber} جم</span>
+        </div>
+        <div class="glass-card p-3.5">
+          <span class="text-[11px] text-slate-400">متوسط البروتين / يوم مسجل 🍗</span>
+          <div class="text-xl font-extrabold text-sky-300 mt-1">${avgProtein} <span class="text-xs font-normal text-slate-400">جم</span></div>
+          <span class="text-[10px] text-slate-300">الهدف: ${state.profile.targets.protein} جم</span>
+        </div>
+        <div class="glass-card p-3.5">
+          <span class="text-[11px] text-slate-400">متوسط الدهون / يوم مسجل 🩺</span>
+          <div class="text-xl font-extrabold text-purple-300 mt-1">${avgFats} <span class="text-xs font-normal text-slate-400">جم</span></div>
+          <span class="text-[10px] text-slate-300">الهدف: ${state.profile.targets.fats} جم</span>
+        </div>
+      </div>
+
+      <div class="glass-card p-4 space-y-2">
+        <h3 class="text-xs font-extrabold text-emerald-300">💡 توصية المتابعة الأسبوعية لما بعد المرارة والشغل المكتبي</h3>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          نوّع على مدار الأسبوع بين البقول المدمسة جيداً (فول، عدس)، الخضار الورقي والمطبوخ (ملوخية، بامية، سلطة بلدي)، الفاكهة الغنية بالبكتين (تفاح، جوافة)، ومصادر البروتين المشوية (سمك مشوي، صدور فراخ، جبنة قريش، بيض مسلوق) للحفاظ على راحة الجهاز الهضمي وثبات النشاط في الشغل.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+// ===== 4. واجهة الخبير الذكي (AI Nutritionist) =====
 function renderAiExpertView() {
   return `
     <div class="space-y-4 pb-6">
@@ -1730,17 +2079,17 @@ function renderAiExpertView() {
         <textarea
           id="ai-meal-input"
           rows="2"
-          placeholder="مثال: معروض عليا آكل حواوشي أو نص فرخة مشوية في الشغل، أختار إيه وأنا شايل المرارة؟"
+          placeholder="مثال: فطرت طبق فول بالبيض المسلوق ورغيف بلدي وجرجير..."
           class="w-full bg-slate-900/90 text-white text-xs rounded-xl p-3 border border-white/15 focus:outline-none focus:border-emerald-400"
         ></textarea>
         <div class="flex flex-wrap gap-1.5">
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='فطرت فول بالبيض المسلوق وعيش بلدي وجرجير'" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg">
-            🥙 فول بالبيض المسلوق
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='فطرت فول مدمس وبيض مسلوق وعيش بلدي ردة'" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg">
+            🥙 فول وبيض مسلوق
           </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='طلبت نص فرخة مشوية مع سلطة خضراء و5 معالق رز'" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg">
-            🍗 نص فرخة مشوية
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='اتغديت فراخ مشوية صدر مع أرز مصري وسلطة خضراء'" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg">
+            🍗 فراخ مشوية وأرز
           </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='كلت رغيف حواوشي بلدي وسندوتش سجق'" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg">
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='كلت رغيف حواوشي بلدي ومكرونة بالبشاميل'" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg">
             🌭 اختبار وجبة دسمة للمرارة
           </button>
         </div>
@@ -1825,10 +2174,11 @@ function renderAiExpertView() {
   `;
 }
 
-// ===== واجهة المكملات الغذائية والمنبهات (كلها قابلة للتعديل والإضافة والحذف) =====
+// ===== 5. واجهة المكملات الغذائية والمنبهات وتقويم الآيفون (.ics) =====
 function renderSupplementsAndRemindersView() {
+  const currLog = getCurrentDayLog();
   const allSupps = state.supplementsList;
-  const takenCount = allSupps.filter((s) => state.todayLog.supplementsTaken[s.id]).length;
+  const takenCount = allSupps.filter((s) => currLog.supplementsTaken[s.id]).length;
 
   return `
     <div class="space-y-4 pb-6">
@@ -1836,7 +2186,7 @@ function renderSupplementsAndRemindersView() {
         <div>
           <h2 class="text-base font-extrabold text-white">💊 مكملات المرارة والشغل (قابلة للتعديل)</h2>
           <p class="text-xs text-slate-300 mt-0.5">
-            أخدت <strong class="text-emerald-300">${takenCount} من ${allSupps.length}</strong> مكملات النهاردة
+            أخدت <strong class="text-emerald-300">${takenCount} من ${allSupps.length}</strong> مكملات في هذا اليوم
           </p>
         </div>
         <button
@@ -1847,11 +2197,10 @@ function renderSupplementsAndRemindersView() {
         </button>
       </div>
 
-      <!-- قائمة المكملات اليومية مع زر تعديل لكل مكمل -->
       <div class="space-y-2.5">
         ${allSupps
           .map((supp) => {
-            const isTaken = !!state.todayLog.supplementsTaken[supp.id];
+            const isTaken = !!currLog.supplementsTaken[supp.id];
             return `
             <div class="glass-card p-3.5 border ${
               isTaken ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-white/10'
@@ -1895,12 +2244,11 @@ function renderSupplementsAndRemindersView() {
           .join('')}
       </div>
 
-      <!-- قسم المنبهات والتذكيرات القابلة للتعديل -->
       <div class="glass-card p-4 space-y-3">
         <div class="flex items-center justify-between gap-2">
           <div>
-            <h3 class="text-sm font-extrabold text-white">🔔 منبهات المتابعة (قابلة للتعديل)</h3>
-            <p class="text-[11px] text-slate-400">يمكنك تعديل وقت أو نص أي منبه أو إضافة منبه جديد</p>
+            <h3 class="text-sm font-extrabold text-white">🔔 منبهات المتابعة وتقويم الآيفون</h3>
+            <p class="text-[11px] text-slate-400">منبهات داخلية + ملف تذكير تقويم الآيفون (.ics)</p>
           </div>
           <div class="flex gap-1.5">
             <button
@@ -1917,6 +2265,13 @@ function renderSupplementsAndRemindersView() {
             </button>
           </div>
         </div>
+
+        <button
+          onclick="downloadIcsCalendarReminder()"
+          class="ios-btn w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-extrabold text-xs py-2.5 rounded-xl"
+        >
+          📅 تنزيل تذكير يومي لتقويم الآيفون (.ics) في الساعة ${state.profile.reminderTime || '20:00'}
+        </button>
 
         <div class="space-y-2.5">
           ${state.reminders
@@ -1964,53 +2319,108 @@ function renderSupplementsAndRemindersView() {
   `;
 }
 
-// ===== واجهة الملف الشخصي والحالة الصحية (شايل المرارة + أهداف قابلة للتعديل الكامل) =====
+// ===== 6. واجهة الملف الشخصي والحاسبة وإعدادات يوم الشغل والمرارة =====
 function renderProfileView() {
   const p = state.profile;
   const t = p.targets;
   return `
     <div class="space-y-4 pb-6">
       <form onsubmit="saveProfileSettings(event)" class="glass-card p-4 space-y-3.5">
-        <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+        <div class="border-b border-white/10 pb-2.5">
+          <h2 class="text-base font-extrabold text-white">⚙️ إعداداتي وحالتي الصحية (قابلة للتعديل)</h2>
+          <p class="text-[11px] text-emerald-300">حاسبة الاحتياج + مواعيد الشغل + إعدادات استئصال المرارة</p>
+        </div>
+
+        <!-- يومك عامل إزاي؟ (من تطبيق أكلي FITNESS-APP-GEM) -->
+        <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
+          <h3 class="text-xs font-extrabold text-amber-300">☀️ يومك وشغلك عامل إزاي؟</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[11px] text-slate-300 font-bold block mb-1">اسمك</label>
+              <input id="prof-name" type="text" value="${p.name}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-white/15" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-300 font-bold block mb-1">طبيعة الشغل</label>
+              <input id="prof-workstyle" type="text" value="${p.workStyle}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-white/15" />
+            </div>
+          </div>
           <div>
-            <h2 class="text-base font-extrabold text-white">🩺 الملف الصحي والبيانات القابلة للتعديل</h2>
-            <p class="text-[11px] text-emerald-300">يمكنك تعديل حالتك الصحية، استئصال المرارة، وجميع الأرقام بحرية</p>
+            <label class="text-[11px] text-slate-300 font-bold block mb-1">أكلك غالباً منين؟</label>
+            <input id="prof-foodsource" type="text" value="${p.foodSource || 'مطاعم وأكل شارع'}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-white/15" />
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-300 font-bold block mb-1">بداية الشغل</label>
+              <input id="prof-workstart" type="time" value="${p.workStart || '09:00'}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15" />
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-300 font-bold block mb-1">نهاية الشغل</label>
+              <input id="prof-workend" type="time" value="${p.workEnd || '18:00'}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15" />
+            </div>
+            <div>
+              <label class="text-[10px] text-emerald-300 font-bold block mb-1">تذكير التقويم</label>
+              <input id="prof-remindertime" type="time" value="${p.reminderTime || '20:00'}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-emerald-500/40" />
+            </div>
           </div>
         </div>
 
-        <!-- البيانات الأساسية -->
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">الاسم أو اللقب</label>
-            <input id="prof-name" type="text" value="${p.name}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2.5 border border-white/15" />
+        <!-- حاسبة الاحتياج التقريبي Mifflin-St Jeor -->
+        <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-extrabold text-emerald-300">🧮 بيانات الجسم وحاسبة الاحتياج</h3>
+            <button
+              type="button"
+              onclick="recalculateAutoTargets()"
+              class="ios-btn bg-emerald-500 text-slate-950 text-[10px] font-extrabold px-2.5 py-1.5 rounded-lg"
+            >
+              احسب واملأ الأهداف ↓
+            </button>
           </div>
-          <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">طبيعة الشغل</label>
-            <input id="prof-workstyle" type="text" value="${p.workStyle}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2.5 border border-white/15" />
+          <div class="grid grid-cols-4 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-300 font-bold block mb-1">النوع</label>
+              <select id="prof-gender" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15">
+                <option value="male" ${p.gender !== 'female' ? 'selected' : ''}>ذكر</option>
+                <option value="female" ${p.gender === 'female' ? 'selected' : ''}>أنثى</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-300 font-bold block mb-1">الوزن (كجم)</label>
+              <input id="prof-weight" type="number" step="0.5" value="${p.weight}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15" />
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-300 font-bold block mb-1">الطول (سم)</label>
+              <input id="prof-height" type="number" value="${p.height}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15" />
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-300 font-bold block mb-1">السن</label>
+              <input id="prof-age" type="number" value="${p.age}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15" />
+            </div>
           </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">الوزن (كجم)</label>
-            <input id="prof-weight" type="number" step="0.5" value="${p.weight}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2.5 border border-white/15" />
-          </div>
-          <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">الطول (سم)</label>
-            <input id="prof-height" type="number" value="${p.height}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2.5 border border-white/15" />
-          </div>
-          <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">السن</label>
-            <input id="prof-age" type="number" value="${p.age}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2.5 border border-white/15" />
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[11px] text-slate-300 font-bold block mb-1">النشاط اليومي</label>
+              <select id="prof-activity" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15">
+                <option value="sedentary" ${p.activity === 'sedentary' ? 'selected' : ''}>مكتبي / حركة قليلة</option>
+                <option value="light" ${p.activity === 'light' ? 'selected' : ''}>حركة خفيفة / مشي بسيط</option>
+                <option value="moderate" ${p.activity === 'moderate' ? 'selected' : ''}>شغل ميداني / تمرين 3-4 أيام</option>
+                <option value="active" ${p.activity === 'active' ? 'selected' : ''}>مجهود بدني عالي يومياً</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-300 font-bold block mb-1">الهدف</label>
+              <select id="prof-goal" class="w-full bg-slate-900 text-white text-xs rounded-xl px-2 py-2 border border-white/15">
+                <option value="fat_loss" ${p.goal === 'fat_loss' ? 'selected' : ''}>نزول الوزن وخسارة الكرش</option>
+                <option value="maintain" ${p.goal === 'maintain' ? 'selected' : ''}>الحفاظ على الوزن وتنظيم الأكل</option>
+                <option value="muscle" ${p.goal === 'muscle' ? 'selected' : ''}>زيادة الكتلة العضلية</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <!-- قسم الحالة الطبية (استئصال المرارة والقولون) -->
         <div class="bg-sky-950/30 p-3.5 rounded-2xl border border-sky-500/30 space-y-2.5">
-          <h3 class="text-xs font-extrabold text-sky-300 flex items-center gap-1.5">
-            <span>🩺</span>
-            <span>الحالة الصحية والهضمية (قابلة للتعديل)</span>
-          </h3>
+          <h3 class="text-xs font-extrabold text-sky-300">🩺 الحالة الصحية والهضمية (قابلة للتعديل)</h3>
 
           <label class="flex items-center justify-between bg-slate-900/80 p-2.5 rounded-xl border border-white/10 cursor-pointer">
             <div>
@@ -2031,37 +2441,17 @@ function renderProfileView() {
           <div>
             <label class="text-xs text-sky-300 font-bold block mb-1">الحد الأقصى الآمن للدهون في الوجبة الواحدة (جم)</label>
             <input id="prof-max-meal-fat" type="number" step="1" value="${p.maxFatPerMeal}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-sky-500/40" />
-            <span class="text-[10px] text-slate-400 block mt-1">للي شايل المرارة يُنصح بـ 12 إلى 15 جم دهون كحد أقصى في الوجبة الواحدة.</span>
           </div>
 
           <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">ملاحظاتك الصحية الخاصة (تظهر للخبير الذكي)</label>
+            <label class="text-xs text-slate-300 font-bold block mb-1">ملاحظاتك الصحية الخاصة</label>
             <textarea id="prof-med-notes" rows="2" class="w-full bg-slate-900 text-white text-xs rounded-xl p-2.5 border border-white/15">${p.medicalNotes || ''}</textarea>
           </div>
         </div>
 
-        <!-- الأهداف اليومية القابلة للتعديل المباشر أو الحساب التلقائي -->
+        <!-- الأهداف اليومية القابلة للتعديل -->
         <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-extrabold text-emerald-300">🎯 الأهداف اليومية (قابلة للتعديل اليدوي أو التلقائي)</h3>
-            <button
-              type="button"
-              onclick="recalculateAutoTargets()"
-              class="ios-btn bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg"
-            >
-              🧮 احسب تلقائياً لجسمي
-            </button>
-          </div>
-
-          <div>
-            <label class="text-xs text-slate-300 font-bold block mb-1">الهدف العام</label>
-            <select id="prof-goal" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-white/15">
-              <option value="fat_loss" ${p.goal === 'fat_loss' ? 'selected' : ''}>تنشيف وخسارة الكرش المكتبي</option>
-              <option value="maintain" ${p.goal === 'maintain' ? 'selected' : ''}>ثبات الوزن وراحة الهضم والنشاط</option>
-              <option value="muscle" ${p.goal === 'muscle' ? 'selected' : ''}>زيادة عضل صافي</option>
-            </select>
-          </div>
-
+          <h3 class="text-xs font-extrabold text-emerald-300">🎯 أهدافك اليومية (قابلة للتعديل اليدوي)</h3>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-[11px] text-slate-300 font-bold block mb-1">السعرات اليومية 🔥</label>
@@ -2090,30 +2480,33 @@ function renderProfileView() {
 
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="text-[11px] text-sky-300 font-bold block mb-1">هدف أكواب الماء 💧</label>
+              <label class="text-[11px] text-sky-300 font-bold block mb-1">أكواب الماء (250 مل) 💧</label>
               <input id="prof-water-target" type="number" value="${t.waterCups}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-white/15" />
             </div>
             <div>
-              <label class="text-[11px] text-amber-300 font-bold block mb-1">هدف قومة المكتب 🚶‍♂️</label>
+              <label class="text-[11px] text-amber-300 font-bold block mb-1">فواصل حركة المكتب 🚶‍♂️</label>
               <input id="prof-stretch-target" type="number" value="${t.stretchBreaks}" class="w-full bg-slate-900 text-white text-xs rounded-xl px-3 py-2 border border-white/15" />
             </div>
           </div>
         </div>
 
         <button type="submit" class="ios-btn w-full bg-emerald-500 text-slate-950 font-extrabold text-xs py-3 rounded-xl shadow-lg">
-          💾 حفظ كافة البيانات والتعديلات
+          💾 حفظ كافة الإعدادات والبيانات
         </button>
       </form>
 
-      <!-- نسخ احتياطي واستعادة البيانات -->
+      <!-- التذكيرات والنسخ الاحتياطي -->
       <div class="glass-card p-4 space-y-2.5">
-        <h3 class="text-xs font-extrabold text-white">📂 نسخ احتياطي واستعادة التعديلات</h3>
+        <h3 class="text-xs font-extrabold text-white">📂 التذكيرات والنسخ الاحتياطي</h3>
+        <button onclick="downloadIcsCalendarReminder()" class="ios-btn w-full bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold py-2.5 rounded-xl border border-amber-500/30">
+          📅 تنزيل تذكير يومي لتقويم الآيفون (.ics)
+        </button>
         <div class="grid grid-cols-2 gap-2">
           <button onclick="exportUserData()" class="ios-btn bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold py-2.5 rounded-xl border border-emerald-500/30">
             📥 تصدير بياناتي (JSON)
           </button>
           <label class="ios-btn bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-bold py-2.5 rounded-xl border border-sky-500/30 text-center cursor-pointer">
-            📤 استيراد بياناتي
+            📤 استرجاع نسخة (أو أكلي)
             <input type="file" accept=".json" onchange="importUserData(event)" class="hidden" />
           </label>
         </div>
@@ -2133,6 +2526,8 @@ function renderApp() {
     main.innerHTML = renderDashboardView();
   } else if (state.activeTab === 'foods') {
     main.innerHTML = renderFoodsView();
+  } else if (state.activeTab === 'insights') {
+    main.innerHTML = renderInsightsView();
   } else if (state.activeTab === 'ai') {
     main.innerHTML = renderAiExpertView();
   } else if (state.activeTab === 'supplements') {
