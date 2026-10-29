@@ -1,18 +1,19 @@
-// موسوعة الأكل المصري الشاملة (تجمع كافة أكلات تطبيق "أكلي FITNESS-APP-GEM" + مطاعم الشارع المصري + تقييم استئصال المرارة والشغل المكتبي)
+// الموسوعة الكبرى للأكل المصري: ساندوتشات الشارع والمطاعم، علب الكشري والطواجن، وجبات المشويات، الأكل البيتي، والفواكه والسلطات (مع تقييم استئصال المرارة والشغل المكتبي)
 
 window.MEAL_TYPES = ['فطار', 'غدا', 'عشا', 'سناك'];
 
 window.EGYPTIAN_FOOD_CATEGORIES = [
   { id: 'all', name: 'الكل', icon: '🍽️' },
+  { id: 'ساندوتشات', name: 'ساندوتشات الشارع والمطاعم', icon: '🥪' },
   { id: 'gallbladder_safe', name: 'مريح بدون مرارة 💚', icon: '🩺' },
   { id: 'custom_only', name: 'أكلاتي ★', icon: '⭐' },
-  { id: 'فطار', name: 'فطار وعشا', icon: '🥙' },
-  { id: 'غدا', name: 'غدا ومشويات وكشري', icon: '🍲' },
+  { id: 'فطار', name: 'فطار وعشا وأجبان', icon: '🥙' },
+  { id: 'كشري وطواجن', name: 'كشري وطواجن', icon: '🍲' },
+  { id: 'غدا', name: 'وجبات غدا ومشويات وبيتي', icon: '🍗' },
   { id: 'سناك', name: 'سناك وفواكه ومشروبات', icon: '🍎' },
   { id: 'إضافات', name: 'سلطات وإضافات وألياف', icon: '🥗' }
 ];
 
-// دالة تطبيع النص العربي للبحث الذكي (من تطبيق أكلي FITNESS-APP-GEM)
 window.normalizeArabic = function (str) {
   return String(str ?? '')
     .trim()
@@ -27,38 +28,514 @@ window.normalizeArabic = function (str) {
 };
 
 window.EGYPTIAN_FOODS_DB = [
-  // === فطار وعشا ===
+  // =========================================================================
+  // 1. ساندوتشات الفول والطعمية والبطاطس والفطار (جاد / التابعي / عربيات الفول)
+  // =========================================================================
+  {
+    id: 'sand_foul_baladi_tahini',
+    name: 'ساندوتش فول بالطحينة والزيت الحار (عيش بلدي)',
+    emoji: '🥪',
+    category: 'ساندوتشات',
+    restaurantHint: 'جاد / التابعي / نعمة / عربيات الفول',
+    serving: 'نصف رغيف بلدي كبير أو رغيف صغير • 160 جم',
+    calories: 295, protein: 11, carbs: 42, fats: 9, fiber: 7.5,
+    sodium: 480, iron: 2.8, calcium: 55, potassium: 380,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'مناسب لمن أزال المرارة (9 جم دهون و7.5 جم ألياف) بشرط طلب زيت خفيف وطحينة خفيفة.',
+    expertTip: 'العيش البلدي بالردة مع الفول بيديك ألياف عالية وشبع طويل في الشغل.'
+  },
+  {
+    id: 'sand_foul_shami',
+    name: 'ساندوتش فول بالزيت والليمون (عيش شامي أو فينو)',
+    emoji: '🥖',
+    category: 'ساندوتشات',
+    restaurantHint: 'مطاعم وعربيات الفول',
+    serving: 'ساندوتش متوسط • 150 جم',
+    calories: 310, protein: 10, carbs: 46, fats: 9, fiber: 4.5,
+    sodium: 490, iron: 2.3, calcium: 40, potassium: 340,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'آمن في الدهون (9 جم)، لكن العيش البلدي أفضل من الشامي لزيادة الألياف التي تربط العصارة الصفراوية.',
+    expertTip: 'اعصر ليمون كتير واطلب معاه جرجير وخيار.'
+  },
+  {
+    id: 'sand_foul_boiled_egg',
+    name: 'ساندوتش فول بالبيض المسلوق (عيش بلدي)',
+    emoji: '🥚',
+    category: 'ساندوتشات',
+    restaurantHint: 'جاد / التابعي / عربيات الفول',
+    serving: 'ساندوتش بلدي مليان • 190 جم',
+    calories: 345, protein: 17, carbs: 42, fats: 11, fiber: 7.5,
+    sodium: 520, iron: 3.6, calcium: 80, potassium: 440,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'أقوى ساندوتش فطار لمن أزال المرارة! 17 جم بروتين و7.5 جم ألياف ودهون آمنة (11 جم).',
+    expertTip: 'يشبعك 5 ساعات متواصلة قدام اللابتوب بدون أي خمول.'
+  },
+  {
+    id: 'sand_taamia_baladi',
+    name: 'ساندوتش طعمية (فلافل) بالسلطة والطحينة (عيش بلدي)',
+    emoji: '🥙',
+    category: 'ساندوتشات',
+    restaurantHint: 'جاد / التابعي / زوبا / عربيات الفول',
+    serving: 'ساندوتش بلدي + قرصين طعمية وسلطة',
+    calories: 365, protein: 10, carbs: 43, fats: 16, fiber: 6.5,
+    sodium: 610, iron: 2.4, calcium: 60, potassium: 340,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'يحتوي على 16 جم دهون بسبب قلي الطعمية؛ اطلبها مصفاة من الزيت وبدون طحينة زيادة وكتر السلطة والجرجير.',
+    expertTip: 'السلطة الخضراء جوه الساندوتش بتقلل امتصاص زيت القلي.'
+  },
+  {
+    id: 'sand_taamia_stuffed',
+    name: 'ساندوتش طعمية محشية بالخلطة الحرشة',
+    emoji: '🧆',
+    category: 'ساندوتشات',
+    restaurantHint: 'محلات الفول والطعمية',
+    serving: 'ساندوتش بلدي + قرص طعمية محشية كبير',
+    calories: 430, protein: 11, carbs: 45, fats: 22, fiber: 6.0,
+    sodium: 740, iron: 2.6, calcium: 65, potassium: 370,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'تنبيه للمرارة: الطعمية المحشية تشرب زيتاً أكثر وحشوتها الحارة تهيج العصارة الصفراوية وتسبب حموضة (22 جم دهون).',
+    expertTip: 'استبدلها بطعمية عادية مصفاة من الزيت مع سلطة خضراء.'
+  },
+  {
+    id: 'sand_foul_on_taamia',
+    name: 'ساندوتش فول على طعمية (ميكس شعبي)',
+    emoji: '🥪',
+    category: 'ساندوتشات',
+    restaurantHint: 'عربيات ومطاعم الفول',
+    serving: 'ساندوتش بلدي • 180 جم',
+    calories: 340, protein: 11, carbs: 44, fats: 13, fiber: 7.0,
+    sodium: 560, iron: 2.6, calcium: 58, potassium: 360,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'دمج الفول مع قرص طعمية واحد يقلل الدهون إلى 13 جم مقارنة بساندوتش الطعمية الصافي!',
+    expertTip: 'حل ذكي لو نفسك في الطعمية وعاوز تقلل الزيت وترفع الألياف.'
+  },
+  {
+    id: 'sand_batates_fried',
+    name: 'ساندوتش بطاطس محمرة بالكاتشب والمايونيز',
+    emoji: '🍟',
+    category: 'ساندوتشات',
+    restaurantHint: 'جاد / فرغلي / مطاعم الفول والسوري',
+    serving: 'رغيف شامي أو فينو أو بلدي',
+    calories: 460, protein: 6, carbs: 58, fats: 22, fiber: 3.5,
+    sodium: 680, iron: 1.2, calcium: 25, potassium: 490,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'البطاطس المقلية مع المايونيز ترفع الدهون لـ 22 جم وتسبب عسر هضم لمن أزال المرارة؛ اطلبها بدون مايونيز وفي عيش بلدي.',
+    expertTip: 'كربوهيدرات ودهون عالية مع بروتين قليل، ممكن يعمل خمول في الشغل.'
+  },
+  {
+    id: 'sand_batates_syrian_bread',
+    name: 'ساندوتش بطاطس سوري بالتومية والمخلل (عيش صاج)',
+    emoji: '🌯',
+    category: 'ساندوتشات',
+    restaurantHint: 'كرم الشام / المطاعم السورية',
+    serving: 'ساندوتش صاج سوري كبير • 240 جم',
+    calories: 550, protein: 8, carbs: 68, fats: 27, fiber: 4.0,
+    sodium: 820, iron: 1.5, calcium: 30, potassium: 560,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'تحذير للمرارة: بطاطس مقلية + تومية زيت = 27 جم دهون صافية وبروتين ضعيف جداً!',
+    expertTip: 'لو بتحب الساندوتشات السوري اختار شيش طاووق مشوي بدون تومية بدل البطاطس.'
+  },
+  {
+    id: 'sand_mashed_potato_egg',
+    name: 'ساندوتش بطاطس مهروسة بالبيض المسلوق والكمون (عيش بلدي)',
+    emoji: '🥔',
+    category: 'ساندوتشات',
+    restaurantHint: 'أكل بيتي / مطاعم الفطار',
+    serving: 'ساندوتش بلدي • 170 جم',
+    calories: 290, protein: 12, carbs: 42, fats: 8, fiber: 5.5,
+    sodium: 410, iron: 2.1, calcium: 45, potassium: 480,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'ممتاز ومريح جداً بعد استئصال المرارة (8 جم دهون فقط) لأن البطاطس والبيض مسلوقان بدون قلي!',
+    expertTip: 'بديل صحي ومشبع جداً عن ساندوتش البطاطس المحمرة.'
+  },
+  {
+    id: 'sand_baba_ghanoug_mesakaa',
+    name: 'ساندوتش بابا غنوج أو مسقعة (عيش بلدي)',
+    emoji: '🍆',
+    category: 'ساندوتشات',
+    restaurantHint: 'مطاعم الفول والطعمية',
+    serving: 'ساندوتش بلدي متوسط',
+    calories: 310, protein: 7, carbs: 40, fats: 14, fiber: 6.0,
+    sodium: 520, iron: 2.0, calcium: 65, potassium: 390,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'ساندوتش البابا غنوج المشوي أريح بكثير للمرارة من المسقعة المقلية بالزيت.',
+    expertTip: 'البابا غنوج غني بالألياف الذائبة المفيدة للهضم.'
+  },
+  {
+    id: 'sand_areesh_cheese_baladi',
+    name: 'ساندوتش جبنة قريش بالطماطم والخيار والنعناع (عيش بلدي أو سن)',
+    emoji: '🧀',
+    category: 'ساندوتشات',
+    restaurantHint: 'فطار أو عشا دايت للشغل',
+    serving: 'نصف رغيف بلدي + 100 جم جبنة قريش وخضار',
+    calories: 230, protein: 17, carbs: 29, fats: 5, fiber: 5.0,
+    sodium: 380, iron: 1.8, calcium: 240, potassium: 340,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'رقم 1 لمن أزال المرارة! 5 جم دهون فقط و17 جم بروتين و5 جم ألياف.',
+    expertTip: 'أفضل ساندوتش تاخده معاك المكتب للفطار أو العشا.'
+  },
+  {
+    id: 'sand_feta_tomato_fino',
+    name: 'ساندوتش جبنة بيضاء (فيتا) بالطماطم والخيار',
+    emoji: '🥖',
+    category: 'ساندوتشات',
+    restaurantHint: 'فطار سريع / المكتب',
+    serving: 'رغيف فينو أو نصف بلدي',
+    calories: 290, protein: 11, carbs: 36, fats: 11, fiber: 2.5,
+    sodium: 590, iron: 1.2, calcium: 160, potassium: 210,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'آمن (11 جم دهون)، يفضل عمله في عيش بلدي أو سن بدلاً من الفينو لزيادة الألياف.',
+    expertTip: 'زود خيار وجرجير جنبه.'
+  },
+  {
+    id: 'sand_roumi_cheese_melted',
+    name: 'ساندوتش جبنة رومي سايحة أو باللانشون (فينو)',
+    emoji: '🧀',
+    category: 'ساندوتشات',
+    restaurantHint: 'سوبرماركت / كافيتريا الشغل',
+    serving: 'رغيف فينو متوسط',
+    calories: 390, protein: 15, carbs: 40, fats: 19, fiber: 1.5,
+    sodium: 840, iron: 1.3, calcium: 290, potassium: 140,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'دهون مشبعة عالية (19 جم) وألياف ضعيفة جداً؛ قد يسبب ثقل وحموضة لمن أزال المرارة.',
+    expertTip: 'انتبه لارتفاع الملح والدهون فيه.'
+  },
+
+  // =========================================================================
+  // 2. ساندوتشات البانيه والشيش والشاورما والكبدة والسجق والكفتة (غدا ودليفري)
+  // =========================================================================
+  {
+    id: 'sand_chicken_panee',
+    name: 'ساندوتش فراخ بانيه مقرمش بالخس والمايونيز',
+    emoji: '🥪',
+    category: 'ساندوتشات',
+    restaurantHint: 'جاد / نعمة / مطاعم الساندوتشات / بيتي',
+    serving: 'ساندوتش فينو أو سوري كبير • 220 جم',
+    calories: 510, protein: 28, carbs: 48, fats: 23, fiber: 2.5,
+    sodium: 790, iron: 2.1, calcium: 45, potassium: 380,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'البانيه المقلي مع المايونيز يرفع الدهون لـ 23 جم! لراحة المرارة اطلبه بدون مايونيز أو استبدله بساندوتش شيش طاووق مشوي.',
+    expertTip: 'لو عملت البانيه في البيت في الإيرفراير تنزل دهون الساندوتش لـ 8 جم فقط!'
+  },
+  {
+    id: 'sand_shish_tawook',
+    name: 'ساندوتش شيش طاووق مشوي بالخضار (بلدي أو فينو أو سوري)',
+    emoji: '🌯',
+    category: 'ساندوتشات',
+    restaurantHint: 'كرم الشام / تكا / جاد / مطاعم المشويات',
+    serving: 'ساندوتش متوسط • 210 جم',
+    calories: 380, protein: 32, carbs: 38, fats: 10, fiber: 3.5,
+    sodium: 640, iron: 2.4, calcium: 40, potassium: 460,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'أفضل ساندوتش فراخ لمن أزال المرارة! مشوي على الفحم ودهونه 10 جم فقط (بشرط عدم وضع تومية أو مايونيز).',
+    expertTip: 'بروتين عالي (32 جم) وخفيف جداً على الهضم وقت الشغل.'
+  },
+  {
+    id: 'sand_chicken_fajita_grilled',
+    name: 'ساندوتش فاهيتا فراخ مشوية بالفلفل والبصل',
+    emoji: '🌮',
+    category: 'ساندوتشات',
+    restaurantHint: 'مطاعم الساندوتشات والسوري',
+    serving: 'ساندوتش متوسط • 220 جم',
+    calories: 410, protein: 30, carbs: 42, fats: 13, fiber: 4.0,
+    sodium: 690, iron: 2.2, calcium: 45, potassium: 440,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'ممتاز ومناسب لمن أزال المرارة (13 جم دهون) بفضل شوي الفراخ مع الفلفل الألوان والبصل بدون قلي.',
+    expertTip: 'اطلبه بدون صوص مايونيز أو جبنة شيدر سايحة.'
+  },
+  {
+    id: 'sand_shawarma_chicken_syrian',
+    name: 'ساندوتش شاورما فراخ سوري بالتومية (عيش صاج)',
+    emoji: '🌯',
+    category: 'ساندوتشات',
+    restaurantHint: 'كرم الشام / أبو مازن / جاد / رسلان',
+    serving: 'ساندوتش صاج سوري • 240 جم',
+    calories: 520, protein: 30, carbs: 50, fats: 22, fiber: 3.0,
+    sodium: 890, iron: 1.9, calcium: 40, potassium: 390,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'التومية ترفع الدهون لـ 22 جم؛ اطلبه "بدون تومية" لتنزل الدهون إلى 9 جم فقط ويصبح مريحاً تماماً للمرارة!',
+    expertTip: 'كل معاه خيار وجرجير لرفع الألياف.'
+  },
+  {
+    id: 'sand_shawarma_chicken_kaiser',
+    name: 'ساندوتش شاورما فراخ مصري (عيش كيزر)',
+    emoji: '🍔',
+    category: 'ساندوتشات',
+    restaurantHint: 'أبو حيدر / سمسمة / نعمة / جاد',
+    serving: 'ساندوتش كيزر متوسط • 160 جم',
+    calories: 360, protein: 22, carbs: 34, fats: 14, fiber: 2.0,
+    sodium: 680, iron: 1.8, calcium: 35, potassium: 320,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'حجمه أصغر من السوري ودهونه في حدود الأمان (14 جم) خاصة إذا طُلب بتومية خفيفة.',
+    expertTip: 'مناسب كغداء خفيف مع طبق سلطة خضراء.'
+  },
+  {
+    id: 'sand_shawarma_meat_kaiser',
+    name: 'ساندوتش شاورما لحمة مصري بالطحينة والبقدونس (كيزر)',
+    emoji: '🍔',
+    category: 'ساندوتشات',
+    restaurantHint: 'أبو حيدر / سمسمة / نعمة / جاد',
+    serving: 'ساندوتش كيزر متوسط • 165 جم',
+    calories: 395, protein: 21, carbs: 34, fats: 19, fiber: 2.2,
+    sodium: 740, iron: 2.9, calcium: 55, potassium: 350,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'شاورما اللحمة تحتوي على نسبة دهن ضاني (19 جم دهون)؛ اطلبها لحم صافي وبقدونس زيادة.',
+    expertTip: 'غني بالحديد والزنك، كل قبله سلطة بلدي.'
+  },
+  {
+    id: 'sand_kofta_mashwia',
+    name: 'ساندوتش كفتة مشوية على الفحم بالبقدونس والطحينة',
+    emoji: '🥖',
+    category: 'ساندوتشات',
+    restaurantHint: 'الدهان / فرحات / كرم الشام / الحاتي',
+    serving: 'ساندوتش بلدي أو فينو (صباعين كفتة) • 180 جم',
+    calories: 430, protein: 24, carbs: 36, fats: 21, fiber: 4.0,
+    sodium: 720, iron: 3.4, calcium: 55, potassium: 410,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'لتقليل دهون ساندوتش الكفتة من 21 جم إلى 13 جم لراحة المرارة: اطلبه في عيش بلدي بالبقدونس والطماطم وبدون طحينة.',
+    expertTip: 'العيش البلدي مع البقدونس بيوازن دهون الكفتة.'
+  },
+  {
+    id: 'sand_kebda_iskandarani',
+    name: 'ساندوتش كبدة إسكندراني بالفلفل والليمون',
+    emoji: '🥖',
+    category: 'ساندوتشات',
+    restaurantHint: 'الفلاح / عز المنوفي / عربيات الكبدة',
+    serving: 'ساندوتش فينو أو بلدي • 160 جم',
+    calories: 370, protein: 21, carbs: 34, fats: 16, fiber: 3.0,
+    sodium: 710, iron: 6.5, calcium: 30, potassium: 380,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'الكبدة نفسها قليلة الدهون، لكن زيت التسوية يرفعها لـ 16 جم؛ اطلبها مصفاة من الزيت وفي عيش بلدي مع ليمون.',
+    expertTip: 'منجم حديد وفيتامين B12 للتركيز المكتبي!'
+  },
+  {
+    id: 'sand_kebda_radda_grilled',
+    name: 'ساندوتش كبدة بالردة (عيش بلدي وسلطة خضراء)',
+    emoji: '🥙',
+    category: 'ساندوتشات',
+    restaurantHint: 'الفلاح / الشرقاوي / مطاعم الكبدة',
+    serving: 'ساندوتش بلدي • 170 جم',
+    calories: 340, protein: 23, carbs: 38, fats: 10, fiber: 5.0,
+    sodium: 640, iron: 6.8, calcium: 35, potassium: 410,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'أخف على المرارة من الكبدة الإسكندراني الغرقانة زيت إذا صُفيت جيداً (10 جم دهون و5 جم ألياف ردة).',
+    expertTip: 'اعصر عليها ليمون كتير.'
+  },
+  {
+    id: 'sand_sogo2_sharqi',
+    name: 'ساندوتش سجق شرقي أو إسكندراني بالطماطم والفلفل',
+    emoji: '🌭',
+    category: 'ساندوتشات',
+    restaurantHint: 'عز المنوفي / الفلاح / عربيات الشارع',
+    serving: 'ساندوتش متوسط • 160 جم',
+    calories: 440, protein: 15, carbs: 33, fats: 27, fiber: 2.5,
+    sodium: 890, iron: 2.8, calcium: 35, potassium: 320,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'تحذير للمرارة: السجق غني بالدهون المشبعة والتوابل (27 جم دهون في الساندوتش) ويسبب مغص وإسهال صفراوي.',
+    expertTip: 'تجنبه وقت الشغل لأنه يسبب عطش شديد وخمول.'
+  },
+  {
+    id: 'sand_hawawshi_loaf',
+    name: 'رغيف حواوشي بلدي باللحمة المفرومة',
+    emoji: '🫓',
+    category: 'ساندوتشات',
+    restaurantHint: 'حواوشي الرفاعي / الربيع / الحاتي',
+    serving: 'رغيف متوسط • 220 جم',
+    calories: 600, protein: 27, carbs: 55, fats: 30, fiber: 5.5,
+    sodium: 1050, iron: 4.2, calcium: 65, potassium: 520,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'تحذير للمرارة: الرغيف الكامل فيه 30 جم دهون! اضغط "نصف حصة" لتأكل نصف رغيف فقط (15 جم دهون) مع سلطة بلدي.',
+    expertTip: 'نصف رغيف حواوشي مع طبق سلطة كبير كافي جداً كوجبة.'
+  },
+  {
+    id: 'sand_crepe_chicken',
+    name: 'كريب فراخ (بانيه / شيش / كرسبي) بالموتزاريلا',
+    emoji: ' треугольник ',
+    category: 'ساندوتشات',
+    restaurantHint: 'محلات الكريب والبيتزا',
+    serving: 'فطيرة كريب مثلث كامل • 320 جم',
+    calories: 720, protein: 34, carbs: 68, fats: 34, fiber: 3.0,
+    sodium: 1180, iron: 2.5, calcium: 240, potassium: 410,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'الكريب الواحد يحتوي على 34 جم دهون بسبب الجبنة الموتزاريلا والمايونيز والكاتشب! قسمه على وجبتين إذا كنت شايل المرارة.',
+    expertTip: 'اطلب كريب شيش طاووق مشوي بدون مايونيز لتقليل السعرات والدهون للنصف.'
+  },
+  {
+    id: 'sand_burger_beef_chicken',
+    name: 'ساندوتش برجر لحمة أو فراخ بالجبنة والخس',
+    emoji: '🍔',
+    category: 'ساندوتشات',
+    restaurantHint: 'بازوكا / بافلو برجر / ماكدونالدز / بيتي',
+    serving: 'ساندوتش سنجل متوسط • 200 جم',
+    calories: 530, protein: 26, carbs: 44, fats: 27, fiber: 2.5,
+    sodium: 940, iron: 3.1, calcium: 120, potassium: 380,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'يحتوي على 27 جم دهون؛ اطلبه مشوياً بدون صوص مايونيز أو جبنة شيدر لتقليل الدهون لـ 14 جم.',
+    expertTip: 'تجنب طلب بطاطس مقلية بجانبه واستبدلها بسلطة كول سلو خفيفة أو سلطة خضراء.'
+  },
+  {
+    id: 'sand_tuna_baladi',
+    name: 'ساندوتش تونة مصفاة بالليمون والفلفل الأخضر والخس',
+    emoji: '🐟',
+    category: 'ساندوتشات',
+    restaurantHint: 'ساندوتش سريع للمكتب / البيت',
+    serving: 'رغيف بلدي أو سن + تونة مصفاة وخضار',
+    calories: 310, protein: 32, carbs: 34, fats: 5, fiber: 5.5,
+    sodium: 520, iron: 2.4, calcium: 45, potassium: 440,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'مثالي جداً لمن أزال المرارة! 5 جم دهون فقط و32 جم بروتين صافي و5.5 جم ألياف.',
+    expertTip: 'أسرع وأقوى ساندوتش للتركيز الذهني في الشغل.'
+  },
+
+  // =========================================================================
+  // 3. الكشري والطواجن بأحجامها (أبو طارق / التحرير / هند / توم آند بصل)
+  // =========================================================================
+  {
+    id: 'koshary_small_box',
+    name: 'علبة كشري مصري (حجم صغير / أطفال)',
+    emoji: '🍲',
+    category: 'كشري وطواجن',
+    restaurantHint: 'كشري التحرير / أبو طارق / هند',
+    serving: 'علبة صغيرة • 250 جم',
+    calories: 410, protein: 13, carbs: 72, fats: 8, fiber: 8.5,
+    sodium: 620, iron: 3.8, calcium: 55, potassium: 460,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'الحجم الصغير ممتاز جداً لمن أزال المرارة (8 جم دهون فقط و8.5 جم ألياف)! فقط قلل التقلية والشطة الزيت.',
+    expertTip: 'الحجم الصغير مع زيادة العدس والحمص بيمنع الخمول تماماً بعد الغداء!'
+  },
+  {
+    id: 'koshary_medium_bowl',
+    name: 'علبة كشري مصري (حجم وسط)',
+    emoji: '🍚',
+    category: 'كشري وطواجن',
+    restaurantHint: 'كشري أبو طارق / التحرير / هند / توم آند بصل',
+    serving: 'علبة متوسطة • 350 جم',
+    calories: 560, protein: 17, carbs: 99, fats: 11, fiber: 12,
+    sodium: 850, iron: 5.0, calcium: 75, potassium: 620,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'آمن من حيث الدهون (11 جم) وغني جداً بالألياف (12 جم)، اطلبه بتقلية خفيفة وبدون شطة زيت.',
+    expertTip: 'اطلب عدس وحمص زيادة ومكرونة أقل عشان توازن سكر الدم في الشغل!'
+  },
+  {
+    id: 'koshary_large_box',
+    name: 'علبة كشري مصري (حجم كبير / لارج)',
+    emoji: '🍲',
+    category: 'كشري وطواجن',
+    restaurantHint: 'كشري التحرير / أبو طارق / هند',
+    serving: 'علبة كبيرة • 500 جم',
+    calories: 790, protein: 24, carbs: 138, fats: 16, fiber: 16.5,
+    sodium: 1180, iron: 6.8, calcium: 105, potassium: 840,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'حجم كبير يسبب امتلاء المعدة وارتجاع العصارة الصفراوية (16 جم دهون)؛ يفضل تقسيم العلبة الكبيرة على وجبتين في الشغل!',
+    expertTip: 'لو طلبت علبة كبيرة اقسمها نصفين: نصف للغداء ونصف بعد 3 ساعات عشان ما تنامش على المكتب!'
+  },
+  {
+    id: 'koshary_alex_yellow',
+    name: 'كشري أصفر إسكندراني (بالعدس الأصفر)',
+    emoji: '🍚',
+    category: 'كشري وطواجن',
+    restaurantHint: 'أكل بيتي',
+    serving: 'طبق متوسط • 250 جم',
+    calories: 380, protein: 14, carbs: 65, fats: 7, fiber: 6,
+    sodium: 540, iron: 3.4, calcium: 50, potassium: 480,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'خفيف وممتاز بعد استئصال المرارة (7 جم دهون فقط) والعدس الأصفر سهل الهضم.',
+    expertTip: 'وجبة ممتازة مع بيضتين مسلوقين وطبق سلطة خضراء.'
+  },
+  {
+    id: 'tagine_pasta_chicken',
+    name: 'طاجن مكرونة بالفراخ في الفرن',
+    emoji: '🥘',
+    category: 'كشري وطواجن',
+    restaurantHint: 'محلات الكشري (التحرير / هند / الخديوي)',
+    serving: 'طاجن فردي • 380 جم',
+    calories: 560, protein: 28, carbs: 74, fats: 16, fiber: 4.5,
+    sodium: 920, iron: 3.1, calcium: 65, potassium: 480,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'طاجن الفراخ أخف في الدهون من طاجن اللحمة المفرومة (16 جم دهون)، كُل معه سلطة خضراء لتقليل حموضة الصلصة.',
+    expertTip: 'بروتينه كويس (28 جم)، كل قبله خيار وجرجير لرفع الألياف.'
+  },
+  {
+    id: 'tagine_pasta_meat',
+    name: 'طاجن مكرونة باللحمة المفرومة في الفرن',
+    emoji: '🥘',
+    category: 'كشري وطواجن',
+    restaurantHint: 'محلات الكشري',
+    serving: 'طاجن فردي • 380 جم',
+    calories: 620, protein: 25, carbs: 74, fats: 24, fiber: 4.5,
+    sodium: 980, iron: 3.9, calcium: 70, potassium: 510,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'اللحمة المفرومة المسبكة في الطاجن ترفع الدهون لـ 24 جم؛ لمن أزال المرارة يفضل طاجن الفراخ أو أكل نصف الطاجن فقط.',
+    expertTip: 'تقيل وقت الشغل، اشرب بعده مية دافية بالليمون.'
+  },
+  {
+    id: 'koshary_extra_lentil_chickpeas',
+    name: 'إضافة كمالة عدس بجبة وحمص الشام',
+    emoji: '🫘',
+    category: 'كشري وطواجن',
+    restaurantHint: 'إضافة محلات الكشري',
+    serving: 'علبة كمالة صغيرة • 120 جم',
+    calories: 160, protein: 11, carbs: 26, fats: 2, fiber: 7.5,
+    sodium: 240, iron: 3.2, calcium: 45, potassium: 360,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'كنز ألياف ذائبة (7.5 جم) وبروتين نباتي (11 جم) ودهون 2 جم فقط! يربط العصارة الصفراوية بفعالية.',
+    expertTip: 'أذكى إضافة تطلبها مع علبة الكشري الصغيرة.'
+  },
+
+  // =========================================================================
+  // 4. فطار وعشا وأجبان وأطباق (أطباق الفول والبيض والجبن والشوفان)
+  // =========================================================================
   {
     id: 'foul_medames_plate',
-    name: 'فول مدمس (طبق متوسط)',
+    name: 'طبق فول مدمس بالكمون والليمون',
     emoji: '🫘',
     category: 'فطار',
-    restaurantHint: 'أكل بيتي / عربيات الفول / جاد / التابعي',
+    restaurantHint: 'أكل بيتي / مطاعم الفول',
     serving: 'طبق متوسط • 200 جم',
     calories: 260, protein: 14, carbs: 38, fats: 7, fiber: 10,
     sodium: 420, iron: 3.2, calcium: 65, potassium: 450,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'آمن وممتاز بعد استئصال المرارة (7 جم دهون فقط و10 جم ألياف تمتص العصارة الصفراوية). اهرسه جيداً مع كمون.',
+    gallbladderNote: 'آمن وممتاز بعد استئصال المرارة (7 جم دهون فقط و10 جم ألياف تمتص العصارة الصفراوية).',
     expertTip: 'فطار مثالي للشغل المكتبي؛ ألياف عالية جداً تمنع الجوع والخمول.'
   },
   {
-    id: 'foul_baladi_sandwich',
-    name: 'ساندوتش فول بالطحينة وزيت خفيف',
-    emoji: '🥙',
-    category: 'فطار',
-    restaurantHint: 'جاد / التابعي / نعمة / عربيات الفول',
-    serving: 'نصف رغيف بلدي (160 جم)',
-    calories: 295, protein: 11, carbs: 42, fats: 9, fiber: 7.5,
-    sodium: 480, iron: 2.8, calcium: 55, potassium: 380,
-    officeImpact: 'energizing',
-    gallbladderStatus: 'safe',
-    gallbladderNote: 'مناسب لمن أزال المرارة بشرط تقليل الزيت والطحينة.',
-    expertTip: 'العيش البلدي بالردة مع الفول بيديك 7.5 جم ألياف وشبع طويل.'
-  },
-  {
     id: 'taamia_3pcs',
-    name: 'طعمية (فلافل) - 3 أقراص',
+    name: 'طعمية (فلافل) - 3 أقراص بدون عيش',
     emoji: '🧆',
     category: 'فطار',
     restaurantHint: 'مطاعم الفول والطعمية',
@@ -67,22 +544,8 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 580, iron: 2.2, calcium: 50, potassium: 310,
     officeImpact: 'moderate',
     gallbladderStatus: 'caution',
-    gallbladderNote: 'تحتوي على 18 جم دهون بسبب القلي؛ صفيها جيداً بمناديل ورقية أو اكتفِ بقرصين لتجنب الحموضة بعد شيل المرارة.',
+    gallbladderNote: 'تحتوي على 18 جم دهون بسبب القلي؛ صفيها جيداً بمناديل ورقية أو اكتفِ بقرصين.',
     expertTip: 'غنية بالخضرة والألياف، كُل معها سلطة خضراء وجرجير.'
-  },
-  {
-    id: 'taamia_sandwich',
-    name: 'ساندوتش طعمية بالسلطة والطحينة',
-    emoji: '🥙',
-    category: 'فطار',
-    restaurantHint: 'جاد / التابعي / زوبا',
-    serving: 'نصف رغيف بلدي + طعمية وسلطة',
-    calories: 385, protein: 10, carbs: 44, fats: 18, fiber: 6.2,
-    sodium: 620, iron: 2.4, calcium: 60, potassium: 340,
-    officeImpact: 'moderate',
-    gallbladderStatus: 'caution',
-    gallbladderNote: 'الدهون 18 جم؛ اطلبها بدون طحينة زيادة وصفي الطعمية من الزيت لراحة المرارة.',
-    expertTip: 'كتر السلطة الخضراء والجرجير جوه الساندوتش.'
   },
   {
     id: 'baladi_bread_loaf',
@@ -151,29 +614,29 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 190, iron: 1.8, calcium: 55, potassium: 135,
     officeImpact: 'energizing',
     gallbladderStatus: 'caution',
-    gallbladderNote: 'الدهون 17 جم بسبب السمن؛ لمن أزال المرارة يفضل عمله في طاسة غير لاصقة بمسحة زيت زيتون خفيفة.',
+    gallbladderNote: 'الدهون 17 جم بسبب السمن؛ لمن أزال المرارة يفضل عمله بمسحة زيت زيتون خفيفة.',
     expertTip: 'بروتين ممتاز لتركيز الصبح.'
   },
   {
     id: 'areesh_cheese_100g',
-    name: 'جبنة قريش فلاحى',
+    name: 'طبق جبنة قريش بالطماطم والخيار',
     emoji: '🧀',
     category: 'فطار',
     restaurantHint: 'أكل بيتي / فطار صحي',
-    serving: 'قطعة متوسطة • 100 جم',
-    calories: 100, protein: 13, carbs: 4, fats: 4, fiber: 0,
-    sodium: 290, iron: 0.5, calcium: 220, potassium: 250,
+    serving: 'قطعة متوسطة • 120 جم',
+    calories: 120, protein: 15, carbs: 6, fats: 4, fiber: 1.5,
+    sodium: 290, iron: 0.6, calcium: 240, potassium: 280,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
     gallbladderNote: 'صديق مثالي لمن أزال المرارة! دهون 4 جم فقط وبروتين وكالسيوم عالي.',
-    expertTip: 'قطع عليها طماطم وخيار وفلفل أخضر وبذر كتان أو زيت زيتون خفيف.'
+    expertTip: 'قطع عليها طماطم وخيار وفلفل أخضر.'
   },
   {
     id: 'feta_white_cheese',
     name: 'جبنة فيتا / بيضاء',
     emoji: '🧀',
     category: 'فطار',
-    restaurantHint: 'سوبرماركت / ساندوتشات',
+    restaurantHint: 'سوبرماركت',
     serving: 'ملعقتين كبار • 60 جم',
     calories: 160, protein: 8, carbs: 2, fats: 13, fiber: 0,
     sodium: 540, iron: 0.4, calcium: 180, potassium: 110,
@@ -187,7 +650,7 @@ window.EGYPTIAN_FOODS_DB = [
     name: 'جبنة رومي (تركي)',
     emoji: '🧀',
     category: 'فطار',
-    restaurantHint: 'سوبرماركت / ساندوتشات',
+    restaurantHint: 'سوبرماركت',
     serving: 'شريحتين • 50 جم',
     calories: 190, protein: 12, carbs: 1, fats: 15, fiber: 0,
     sodium: 620, iron: 0.3, calcium: 320, potassium: 90,
@@ -207,26 +670,26 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 95, iron: 2.1, calcium: 190, potassium: 340,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'ممتازة جداً لمن أزال المرارة (مع لبن خالي أو نصف دسم)! القمح الكامل يمدك بـ 6 جم ألياف ودهون 5 جم فقط.',
-    expertTip: 'فطار دافئ ومشبع جداً في الشغل بدون إضافة سكر كثير.'
+    gallbladderNote: 'ممتازة جداً لمن أزال المرارة (مع لبن قليل الدسم)! القمح الكامل يمدك بـ 6 جم ألياف ودهون 5 جم فقط.',
+    expertTip: 'فطار دافئ ومشبع جداً في الشغل.'
   },
   {
     id: 'oats_with_milk',
-    name: 'شوفان باللبن',
+    name: 'شوفان باللبن وبذور الشيا',
     emoji: '🥣',
     category: 'فطار',
     restaurantHint: 'فطار صحي سريع للمكتب',
-    serving: 'نصف كوب شوفان بكوب لبن • 250 جم',
-    calories: 280, protein: 13, carbs: 40, fats: 7, fiber: 5,
+    serving: 'طبق متوسط • 250 جم',
+    calories: 280, protein: 14, carbs: 40, fats: 7, fiber: 7.5,
     sodium: 110, iron: 2.4, calcium: 240, potassium: 380,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
     gallbladderNote: 'رقم 1 لربط العصارة الصفراوية بعد استئصال المرارة بفضل ألياف البيتا جلوكان الذائبة في الشوفان!',
-    expertTip: 'تقدر تضيف عليه تفاحة متقطعة أو قرفة وبذور شيا.'
+    expertTip: 'تقدر تضيف عليه تفاحة متقطعة أو قرفة.'
   },
   {
     id: 'mashed_boiled_potatoes',
-    name: 'بطاطس مسلوقة ومهروسة',
+    name: 'بطاطس مسلوقة ومهروسة بالكمون',
     emoji: '🥔',
     category: 'فطار',
     restaurantHint: 'أكل بيتي',
@@ -238,105 +701,51 @@ window.EGYPTIAN_FOODS_DB = [
     gallbladderNote: 'مريحة جداً للمعدة والقولون بدون مرارة (4 جم دهون فقط) وغنية بالبوتاسيوم.',
     expertTip: 'بديل صحي ممتاز عن البطاطس المحمرة.'
   },
-  {
-    id: 'fried_eggplant_mesakaa',
-    name: 'باذنجان مقلي / مسقعة',
-    emoji: '🍆',
-    category: 'فطار',
-    restaurantHint: 'مطاعم فول وطعمية / أكل بيتي',
-    serving: 'طبق صغير • 120 جم',
-    calories: 240, protein: 2, carbs: 15, fats: 19, fiber: 4,
-    sodium: 520, iron: 1.4, calcium: 30, potassium: 360,
-    officeImpact: 'high-coma',
-    gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'الباذنجان المقلي يمتص الزيت كالإسفنج (19 جم دهون)! يسبب حموضة وتعب لمن أزال المرارة؛ اشوِ الباذنجان في الفرن بدلاً من قليه.',
-    expertTip: 'المسقعة المشوية في الفرن أخف بـ 70% في الدهون والسعرات.'
-  },
 
-  // === غدا ومشويات وكشري ===
+  // =========================================================================
+  // 5. وجبات الغداء والمشويات والأسماك والأكل البيتي
+  // =========================================================================
   {
-    id: 'koshary_medium_bowl',
-    name: 'كشري مصري (علبة متوسطة)',
-    emoji: '🍚',
+    id: 'meal_half_grilled_chicken_rice',
+    name: 'وجبة نصف فرخة مشوية (بدون جلد) + أرز بسمتي + سلطة',
+    emoji: '🍗',
     category: 'غدا',
-    restaurantHint: 'كشري أبو طارق / التحرير / هند / توم آند بصل',
-    serving: 'علبة متوسطة • 350 جم',
-    calories: 560, protein: 17, carbs: 99, fats: 11, fiber: 12,
-    sodium: 850, iron: 5.0, calcium: 75, potassium: 620,
-    officeImpact: 'high-coma',
-    gallbladderStatus: 'safe',
-    gallbladderNote: 'آمن من حيث الدهون (11 جم) وغني جداً بالألياف (12 جم)، فقط اطلبه بتقلية خفيفة وبدون شطة زيت.',
-    expertTip: 'اطلب عدس وحمص زيادة ومكرونة أقل عشان تمنع كبسة النوم في الشغل!'
-  },
-  {
-    id: 'koshary_alex_yellow',
-    name: 'كشري أصفر (إسكندراني بالعدس الأصفر)',
-    emoji: '🍚',
-    category: 'غدا',
-    restaurantHint: 'أكل بيتي',
-    serving: 'طبق متوسط • 250 جم',
-    calories: 380, protein: 14, carbs: 65, fats: 7, fiber: 6,
-    sodium: 540, iron: 3.4, calcium: 50, potassium: 480,
+    restaurantHint: 'فرحات / الدهان / تكا / حضرموت',
+    serving: 'وجبة متكاملة • نصف فرخة + 5 ملاعق أرز + سلطة',
+    calories: 560, protein: 60, carbs: 46, fats: 14, fiber: 5.0,
+    sodium: 740, iron: 3.1, calcium: 65, potassium: 760,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'خفيف وممتاز بعد استئصال المرارة (7 جم دهون فقط) والعدس الأصفر سهل الهضم.',
-    expertTip: 'وجبة ممتازة مع بيضتين مسلوقين وطبق سلطة خضراء.'
+    gallbladderNote: 'أفضل وجبة دليفري متكاملة لمن أزال المرارة (بشرط نزع جلد الفراخ وتجنب الطحينة الكثيرة)!',
+    expertTip: 'وجبة غنية جداً بالبروتين تشبعك لنهاية اليوم بدون خمول.'
   },
   {
-    id: 'shawarma_chicken_syrian',
-    name: 'شاورما فراخ (ساندوتش متوسط)',
-    emoji: '🌯',
+    id: 'meal_shish_tawook_rice',
+    name: 'وجبة شيش طاووق مشوي + أرز بسمتي + خضار مشوي',
+    emoji: '🍢',
     category: 'غدا',
-    restaurantHint: 'كرم الشام / أبو مازن / جاد',
-    serving: 'ساندوتش متوسط • 250 جم',
-    calories: 520, protein: 30, carbs: 50, fats: 22, fiber: 3,
-    sodium: 890, iron: 1.9, calcium: 40, potassium: 390,
-    officeImpact: 'moderate',
-    gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'تنبيه للمرارة: التومية ترفع الدهون لـ 22 جم! اطلبه بدون تومية لتنخفض الدهون إلى 9 جم ويصبح آمناً.',
-    expertTip: 'زود سلطة خضراء أو خيار وجرجير جنبه لرفع الألياف.'
-  },
-  {
-    id: 'shawarma_meat_sandwich',
-    name: 'شاورما لحمة (ساندوتش متوسط)',
-    emoji: '🌯',
-    category: 'غدا',
-    restaurantHint: 'أبو حيدر / سمسمة / جاد',
-    serving: 'ساندوتش متوسط • 250 جم',
-    calories: 580, protein: 28, carbs: 48, fats: 29, fiber: 3,
-    sodium: 920, iron: 3.1, calcium: 55, potassium: 410,
-    officeImpact: 'high-coma',
-    gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'يحتوي على 29 جم دهون بسبب اللية والطحينة؛ ثقيل على من أزال المرارة إلا إذا أكلت نصف ساندوتش مع سلطة.',
-    expertTip: 'كتر البقدونس تحت الشاورما لأنه يساعد في تقليل امتصاص الدهون.'
-  },
-  {
-    id: 'kebda_iskandarani_baladi',
-    name: 'كبدة إسكندراني (ساندوتش)',
-    emoji: '🥖',
-    category: 'غدا',
-    restaurantHint: 'الفلاح / عز المنوفي / عربيات الكبدة',
-    serving: 'ساندوتش • 160 جم',
-    calories: 390, protein: 22, carbs: 35, fats: 18, fiber: 2,
-    sodium: 710, iron: 6.5, calcium: 30, potassium: 380,
+    restaurantHint: 'تكا / كرم الشام / مطاعم المشويات',
+    serving: 'وجبة كاملة • 2 سيخ شيش + أرز وخضار',
+    calories: 490, protein: 42, carbs: 48, fats: 13, fiber: 5.0,
+    sodium: 690, iron: 2.3, calcium: 50, potassium: 610,
     officeImpact: 'energizing',
-    gallbladderStatus: 'caution',
-    gallbladderNote: 'اطلبها مصفاة من الزيت وفي عيش بلدي بالردة بدلاً من الفينو لتقليل الدهون لـ 11 جم.',
-    expertTip: 'منجم حديد وفيتامين B12 للتركيز المكتبي! اعصر عليها ليمون كتير.'
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'ممتازة ومريحة جداً بعد استئصال المرارة! دهون خفيفة (13 جم) ومشوية على الفحم.',
+    expertTip: 'وجبة متوازنة ممتازة لليوم المكتبي.'
   },
   {
-    id: 'hawawshi_baladi_loaf',
-    name: 'حواوشي بلدي (رغيف متوسط)',
-    emoji: '🫓',
+    id: 'meal_shawarma_arabi_box',
+    name: 'وجبة شاورما فراخ عربي (متقطعة مع بطاطس وتومية)',
+    emoji: '🍱',
     category: 'غدا',
-    restaurantHint: 'حواوشي الرفاعي / الربيع / الحاتي',
-    serving: 'رغيف متوسط • 220 جم',
-    calories: 600, protein: 27, carbs: 55, fats: 30, fiber: 4,
-    sodium: 1050, iron: 4.2, calcium: 65, potassium: 520,
+    restaurantHint: 'كرم الشام / أبو مازن / رسلان',
+    serving: 'بوكس وجبة عربي كاملة • 400 جم',
+    calories: 820, protein: 38, carbs: 75, fats: 42, fiber: 4.5,
+    sodium: 1350, iron: 2.8, calcium: 80, potassium: 640,
     officeImpact: 'high-coma',
     gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'تحذير للمرارة: 30 جم دهون مشبعة في الرغيف الواحد! اكتفِ بنصف رغيف مع إنزيمات هاضمة وطبق سلطة كبير.',
-    expertTip: 'وجبة دسمة تسبب خمول بعد الغداء، لا تأكل رغيفاً كاملاً دفعة واحدة.'
+    gallbladderNote: 'تحذير قوي للمرارة: الوجبة العربي الكاملة مع البطاطس والتومية تحتوي على 42 جم دهون! اقسمها على وجبتين واطلبها بدون تومية.',
+    expertTip: 'وجبة دسمة جداً تسبب خمول قوي بعد الغداء، الأفضل طلب ساندوتش واحد أو شيش مشوي.'
   },
   {
     id: 'grilled_chicken_breast',
@@ -368,7 +777,7 @@ window.EGYPTIAN_FOODS_DB = [
   },
   {
     id: 'fried_chicken_panee',
-    name: 'فراخ بانيه مقلية',
+    name: 'فراخ بانيه مقلية (قطعتين بدون عيش)',
     emoji: '🍗',
     category: 'غدا',
     restaurantHint: 'أكل بيتي / مطاعم',
@@ -378,7 +787,7 @@ window.EGYPTIAN_FOODS_DB = [
     officeImpact: 'moderate',
     gallbladderStatus: 'heavy_fat',
     gallbladderNote: 'قشرة البقسماط المقلية ترفع الدهون لـ 21 جم؛ لمن أزال المرارة يفضل عمل البانيه في القلاية الهوائية (Airfryer) أو الفرن.',
-    expertTip: 'تجنب أكل البانيه المقلي مع مكرونة بالبشاميل في نفس الوجبة.'
+    expertTip: 'كل معه طبق سلطة خضراء كبير.'
   },
   {
     id: 'kofta_mashwia_4pcs',
@@ -392,7 +801,7 @@ window.EGYPTIAN_FOODS_DB = [
     officeImpact: 'moderate',
     gallbladderStatus: 'heavy_fat',
     gallbladderNote: 'تحتوي على 24 جم دهون؛ لمن أزال المرارة اكتفِ بصباعين أو ثلاثة مع بقدونس كثير وسلطة.',
-    expertTip: 'البقدونس تحت الكفتة ليس زينة، بل يقلل امتصاص الدهون!'
+    expertTip: 'البقدونس تحت الكفتة يقلل امتصاص الدهون!'
   },
   {
     id: 'meat_boiled_or_grilled',
@@ -405,7 +814,7 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 410, iron: 4.5, calcium: 30, potassium: 510,
     officeImpact: 'energizing',
     gallbladderStatus: 'caution',
-    gallbladderNote: 'اختر قطعيات اللحمة الحمراء قليلة الدهن (مثل الفلتو أو الموزة المسلوق جيداً) لتكون سهلة الهضم بدون مرارة.',
+    gallbladderNote: 'اختر قطعيات اللحمة الحمراء قليلة الدهن لتكون سهلة الهضم بدون مرارة.',
     expertTip: 'غنية بالحديد والزنك لرفع التركيز.'
   },
   {
@@ -438,7 +847,7 @@ window.EGYPTIAN_FOODS_DB = [
   },
   {
     id: 'canned_tuna_drained',
-    name: 'تونة معلبة (مصفاة تماماً من الزيت)',
+    name: 'علبة تونة مصفاة تماماً من الزيت',
     emoji: '🥫',
     category: 'غدا',
     restaurantHint: 'وجبة سريعة في المكتب',
@@ -483,7 +892,7 @@ window.EGYPTIAN_FOODS_DB = [
     name: 'مكرونة بالصلصة الحمراء',
     emoji: '🍝',
     category: 'غدا',
-    restaurantHint: 'أكل بيتي / مطاعم الكشري',
+    restaurantHint: 'أكل بيتي / مطاعم',
     serving: 'طبق متوسط • 200 جم',
     calories: 310, protein: 9, carbs: 58, fats: 5, fiber: 3,
     sodium: 520, iron: 1.8, calcium: 30, potassium: 280,
@@ -503,12 +912,12 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 790, iron: 2.5, calcium: 180, potassium: 360,
     officeImpact: 'high-coma',
     gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'البشاميل التقليدي بالسمن واللبن كامل الدسم يحتوي على 26 جم دهون وقد يسبب تقلصات بعد شيل المرارة؛ اكتفِ بقطعة صغيرة مع سلطة.',
+    gallbladderNote: 'البشاميل التقليدي يحتوي على 26 جم دهون وقد يسبب تقلصات بعد شيل المرارة؛ اكتفِ بقطعة صغيرة مع سلطة.',
     expertTip: 'تسبب خمول قوي بعد الغداء في الشغل.'
   },
   {
     id: 'mahshi_mixed_6pcs',
-    name: 'محشي مشكل (كرنب / ورق عنب / كوسة)',
+    name: 'محشي مشكل (كرنب / ورق عنب / كوسة / باذنجان)',
     emoji: '🫔',
     category: 'غدا',
     restaurantHint: 'أكل بيتي / مطاعم شرقية',
@@ -536,7 +945,7 @@ window.EGYPTIAN_FOODS_DB = [
   },
   {
     id: 'bamia_fasolia_green',
-    name: 'بامية / فاصوليا خضراء بالصلصة',
+    name: 'بامية / فاصوليا خضراء / كوسة مطبوخة',
     emoji: '🍲',
     category: 'غدا',
     restaurantHint: 'أكل بيتي',
@@ -546,7 +955,7 @@ window.EGYPTIAN_FOODS_DB = [
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
     gallbladderNote: 'ممتازة جداً لمن أزال المرارة (7 جم دهون و6 جم ألياف ذائبة تريح القولون).',
-    expertTip: 'البامية والفاصوليا الخضراء من أعلى الخضروات المطبوخة في الألياف.'
+    expertTip: 'البامية والكوسة والفاصوليا الخضراء من أروع الخضروات المريحة للهضم.'
   },
   {
     id: 'lobia_white_beans',
@@ -559,12 +968,12 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 490, iron: 3.5, calcium: 90, potassium: 620,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'دهون منخفضة جداً (5 جم) وألياف عملاقة (10 جم) تمتص العصارة الصفراوية؛ تنقع جيداً قبل السلق لمنع الغازات.',
+    gallbladderNote: 'دهون منخفضة جداً (5 جم) وألياف عملاقة (10 جم) تمتص العصارة الصفراوية.',
     expertTip: 'قنبلة ألياف وبروتين نباتي!'
   },
   {
     id: 'lentil_soup_bowl',
-    name: 'شوربة عدس أصفر',
+    name: 'شوربة عدس أصفر / شوربة خضار',
     emoji: '🥣',
     category: 'غدا',
     restaurantHint: 'أكل بيتي / مطاعم',
@@ -573,7 +982,7 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 510, iron: 4.1, calcium: 55, potassium: 580,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'ممتازة وسهلة الهضم لمن أزال المرارة (5 جم دهون و9 جم ألياف ذائبة) بشرط عدم إضافة سمن بلدي كثير.',
+    gallbladderNote: 'ممتازة وسهلة الهضم لمن أزال المرارة (5 جم دهون و9 جم ألياف ذائبة).',
     expertTip: 'اعصر عليها ليمون كتير لامتصاص الحديد.'
   },
   {
@@ -587,11 +996,13 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 420, iron: 1.5, calcium: 25, potassium: 120,
     officeImpact: 'high-coma',
     gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'تحذير للمرارة: ربع فطيرة فقط يحتوي على 26 جم دهون (سمن وزبدة) وألياف شبه منعدمة! يرهق الهضم بشدة بدون مرارة.',
+    gallbladderNote: 'تحذير للمرارة: ربع فطيرة فقط يحتوي على 26 جم دهون (سمن وزبدة)! يرهق الهضم بشدة بدون مرارة.',
     expertTip: 'لو أكلت منه اكتفِ بقطعة صغيرة جداً مع جبنة قريش وخيار.'
   },
 
-  // === سناك وفواكه ومشروبات ===
+  // =========================================================================
+  // 6. سناك وفواكه ومشروبات المكتب
+  // =========================================================================
   {
     id: 'yogurt_baladi_plain',
     name: 'زبادي بلدي / سادة',
@@ -673,22 +1084,8 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 3, iron: 0.5, calcium: 32, potassium: 740,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: '9 جم ألياف و1 جم دهون! ممتازة جداً لتنظيم الهضم بعد شيل المرارة (انزع البذر لو قولونك حساس).',
+    gallbladderNote: '9 جم ألياف و1 جم دهون! ممتازة جداً لتنظيم الهضم بعد شيل المرارة.',
     expertTip: 'أعلى فاكهة في الألياف وفيتامين C!'
-  },
-  {
-    id: 'mango_medium',
-    name: 'مانجو',
-    emoji: '🥭',
-    category: 'سناك',
-    restaurantHint: 'فاكهة موسمية',
-    serving: 'ثمرة متوسطة • 200 جم',
-    calories: 135, protein: 2, carbs: 35, fats: 1, fiber: 3,
-    sodium: 2, iron: 0.3, calcium: 20, potassium: 325,
-    officeImpact: 'moderate',
-    gallbladderStatus: 'safe',
-    gallbladderNote: 'خالية من الدهون، اشرب بعدها ماء لتعويض الأملاح.',
-    expertTip: 'ثمرة واحدة متوسطة كافية جداً.'
   },
   {
     id: 'dates_3pcs',
@@ -720,16 +1117,16 @@ window.EGYPTIAN_FOODS_DB = [
   },
   {
     id: 'termis_hommos_cup',
-    name: 'ترمس / حمص الشام',
+    name: 'ترمس / حمص الشام بالليمون والكمون',
     emoji: '🫘',
     category: 'سناك',
     restaurantHint: 'سناك صحي للمكتب',
     serving: 'كوب متوسط • 150 جم',
-    calories: 190, protein: 16, carbs: 20, fats: 4, fiber: 7,
+    calories: 190, protein: 16, carbs: 20, fats: 4, fiber: 8.5,
     sodium: 310, iron: 2.8, calcium: 80, potassium: 420,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'دهون خفيفة (4 جم) وألياف عالية (7 جم) تربط العصارة الصفراوية.',
+    gallbladderNote: 'دهون خفيفة (4 جم) وألياف عالية (8.5 جم) تربط العصارة الصفراوية.',
     expertTip: 'بديل ممتاز للمقرمشات المقلية في الشغل.'
   },
   {
@@ -743,7 +1140,7 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 190, iron: 0.9, calcium: 5, potassium: 95,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'حبوب كاملة غنية بالألياف وقليلة الدهون (4 جم) بشرط عمله بملعقة زيت صغيرة فقط.',
+    gallbladderNote: 'حبوب كاملة غنية بالألياف وقليلة الدهون (4 جم).',
     expertTip: 'يملا المعدة ويشبعك بأقل سعرات.'
   },
   {
@@ -758,7 +1155,7 @@ window.EGYPTIAN_FOODS_DB = [
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
     gallbladderNote: 'خفيفة الدهون (2 جم) وغنية بالألياف.',
-    expertTip: 'سناك ممتاز من الشارع المصري بدون أي دهون مهدرجة.'
+    expertTip: 'سناك ممتاز من الشارع المصري.'
   },
   {
     id: 'almonds_raw_nuts',
@@ -771,22 +1168,8 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 5, iron: 1.1, calcium: 75, potassium: 210,
     officeImpact: 'energizing',
     gallbladderStatus: 'caution',
-    gallbladderNote: 'دهون صحية لكن الحفنة الكاملة فيها 15 جم دهون؛ لمن أزال المرارة يفضل أكل نصف حفنة (15 جم = 7.5 جم دهون) في المرة الواحدة.',
+    gallbladderNote: 'دهون صحية لكن الحفنة الكاملة فيها 15 جم دهون؛ لمن أزال المرارة يفضل أكل نصف حفنة في المرة الواحدة.',
     expertTip: 'قسمها على مرتين خلال يوم الشغل.'
-  },
-  {
-    id: 'roasted_peanuts',
-    name: 'سوداني محمص بدون ملح زيادة',
-    emoji: '🥜',
-    category: 'سناك',
-    restaurantHint: 'مقلة لب',
-    serving: 'حفنة يد • 30 جم',
-    calories: 170, protein: 7, carbs: 5, fats: 14, fiber: 3,
-    sodium: 120, iron: 1.3, calcium: 28, potassium: 200,
-    officeImpact: 'energizing',
-    gallbladderStatus: 'safe',
-    gallbladderNote: 'في حدود الأمان (14 جم دهون)، يفضل تقسيمه على مرتين.',
-    expertTip: 'مشبع جداً ومصدر بروتين نباتي اقتصادي.'
   },
   {
     id: 'tea_with_milk',
@@ -800,11 +1183,11 @@ window.EGYPTIAN_FOODS_DB = [
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
     gallbladderNote: 'آمن ومريح (3 جم دهون فقط) خاصة مع لبن قليل الدسم.',
-    expertTip: 'اشربه بعيداً عن وجبة الغداء بساعة حتى لا يقلل امتصاص الحديد.'
+    expertTip: 'اشربه بعيداً عن وجبة الغداء بساعة.'
   },
   {
     id: 'coffee_with_milk',
-    name: 'قهوة باللبن (بدون سكر)',
+    name: 'قهوة باللبن / نسكافيه باللبن (بدون سكر)',
     emoji: '☕',
     category: 'سناك',
     restaurantHint: 'مشروب المكتب',
@@ -817,34 +1200,50 @@ window.EGYPTIAN_FOODS_DB = [
     expertTip: 'لا تشربها على معدة فارغة تماماً.'
   },
   {
-    id: 'asab_sugarcane_juice',
-    name: 'عصير قصب فريش',
-    emoji: '🥤',
+    id: 'turkish_coffee_plain',
+    name: 'قهوة تركي سادة / إسبريسو / شاي كشري',
+    emoji: '☕',
     category: 'سناك',
-    restaurantHint: 'محلات العصير',
-    serving: 'كوب متوسط • 300 مل',
-    calories: 210, protein: 0, carbs: 52, fats: 0, fiber: 0,
-    sodium: 35, iron: 1.4, calcium: 40, potassium: 420,
-    officeImpact: 'high-coma',
+    restaurantHint: 'مشروب التركيز',
+    serving: 'فنجان أو كوب بدون سكر',
+    calories: 15, protein: 0.2, carbs: 3, fats: 0, fiber: 0,
+    sodium: 5, iron: 0.1, calcium: 5, potassium: 90,
+    officeImpact: 'energizing',
     gallbladderStatus: 'caution',
-    gallbladderNote: 'خالي من الدهون لكن السكر البسيط العالي يسبب غازات ويرفع الدهون الثلاثية على الكبد.',
-    expertTip: 'اشربه نادراً وبعد حركة وليس وأنت جالس لساعات.'
+    gallbladderNote: 'اشربها بعد الفطار بساعة وليس على الريق حتى لا تحفز العصارة الصفراوية على معدة فارغة.',
+    expertTip: 'اشرب قصادها كوباية مية.'
   },
 
-  // === سلطات وإضافات وألياف ===
+  // =========================================================================
+  // 7. سلطات وإضافات ورافعات الألياف
+  // =========================================================================
   {
     id: 'salata_baladi_large',
-    name: 'سلطة خضراء بلدي',
+    name: 'طبق سلطة خضراء بلدي كبير',
     emoji: '🥗',
     category: 'إضافات',
-    restaurantHint: 'أساسي بجانب كل وجبة',
-    serving: 'طبق متوسط بدون زيت • 200 جم',
-    calories: 60, protein: 3, carbs: 12, fats: 1, fiber: 4.5,
-    sodium: 55, iron: 1.4, calcium: 60, potassium: 520,
+    restaurantHint: 'أساسي بجانب كل وجبة أو ساندوتش',
+    serving: 'طبق كبير • 250 جم',
+    calories: 70, protein: 3, carbs: 14, fats: 0.8, fiber: 6.5,
+    sodium: 55, iron: 1.6, calcium: 70, potassium: 580,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
     gallbladderNote: 'أساسية مع كل وجبة بعد استئصال المرارة لتبطئة الهضم وربط الأحماض الصفراوية.',
-    expertTip: 'ابدأ بطبق السلطة قبل الأكل الرئيسي دائماً.'
+    expertTip: 'ابدأ بطبق السلطة قبل الساندوتشات أو الأكل الرئيسي دائماً.'
+  },
+  {
+    id: 'gargeer_cucumber_bundle',
+    name: 'حزمة جرجير طازج + خيارتين + جزرة',
+    emoji: '🥒',
+    category: 'إضافات',
+    restaurantHint: 'رافع ألياف سريع بجانب الساندوتشات',
+    serving: 'طبق خضار ورقي ومقرمش • 200 جم',
+    calories: 55, protein: 2.2, carbs: 12, fats: 0.4, fiber: 5.5,
+    sodium: 45, iron: 1.8, calcium: 125, potassium: 490,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'زيرو دهون و5.5 جم ألياف! يحمي الهضم مع أي ساندوتش شارع.',
+    expertTip: 'خلي علبة خيار وجزر متقطع وجرجير جنبك على المكتب.'
   },
   {
     id: 'tahini_salad_2tbsp',
@@ -858,11 +1257,25 @@ window.EGYPTIAN_FOODS_DB = [
     officeImpact: 'moderate',
     gallbladderStatus: 'caution',
     gallbladderNote: 'ملعقتان من الطحينة بهما 16 جم دهون سمسم؛ لمن أزال المرارة اكتفِ بملعقة واحدة صغيرة (نصف حصة).',
-    expertTip: 'الطحينة صحية لكن سعراتها ودهونها مركزة جداً.'
+    expertTip: 'الطحينة صحية لكن دهونها وسعراتها مركزة.'
+  },
+  {
+    id: 'tomeya_sauce_2tbsp',
+    name: 'علبة تومية سوري صغيرة',
+    emoji: '🧄',
+    category: 'إضافات',
+    restaurantHint: 'إضافة المطاعم السورية',
+    serving: 'ملعقتين كبار • 45 جم',
+    calories: 240, protein: 1, carbs: 4, fats: 25, fiber: 0,
+    sodium: 320, iron: 0.1, calcium: 10, potassium: 25,
+    officeImpact: 'high-coma',
+    gallbladderStatus: 'heavy_fat',
+    gallbladderNote: 'تحذير شديد للمرارة: علبة التومية الصغيرة عبارة عن زيت مخفوق وتحتوي وحدها على 25 جم دهون! تجنبها واستبدلها بسلطة خضراء أو بابا غنوج.',
+    expertTip: 'إلغاء التومية من طلب الدليفري يوفر عليك 240 سعرة و25 جم دهون فوراً!'
   },
   {
     id: 'baba_ghanoug_salad',
-    name: 'سلطة بابا غنوج',
+    name: 'سلطة بابا غنوج مشوي',
     emoji: '🍆',
     category: 'إضافات',
     restaurantHint: 'مطاعم المشويات والأسماك',
@@ -871,64 +1284,8 @@ window.EGYPTIAN_FOODS_DB = [
     sodium: 310, iron: 1.2, calcium: 70, potassium: 290,
     officeImpact: 'energizing',
     gallbladderStatus: 'safe',
-    gallbladderNote: 'الباذنجان المشوي مع قليل من الطحينة غني بالألياف الذائبة (4 جم) ودهونه أقل من الطحينة الصافية (11 جم).',
-    expertTip: 'اختيار أذكى وأعلى في الألياف من الطحينة العادية.'
-  },
-  {
-    id: 'french_fries_small',
-    name: 'بطاطس محمرة (شيبسي / صوابع)',
-    emoji: '🍟',
-    category: 'إضافات',
-    restaurantHint: 'مقبلات المطاعم / سوبرماركت',
-    serving: 'باكو أو علبة صغيرة • 100 جم',
-    calories: 310, protein: 3, carbs: 41, fats: 15, fiber: 4,
-    sodium: 490, iron: 0.8, calcium: 15, potassium: 480,
-    officeImpact: 'high-coma',
-    gallbladderStatus: 'heavy_fat',
-    gallbladderNote: 'الزيوت المهدرجة والمقلية تسبب تقلصات لمن أزال المرارة خاصة إذا أُكلت بجانب ساندوتش يحتوي دهوناً أيضاً.',
-    expertTip: 'استبدلها بسلطة خضراء أو ترمس.'
-  },
-  {
-    id: 'sugar_teaspoon',
-    name: 'ملعقة سكر',
-    emoji: '🥄',
-    category: 'إضافات',
-    restaurantHint: 'إضافة للمشروبات',
-    serving: 'ملعقة صغيرة ممسوحة • 5 جم',
-    calories: 20, protein: 0, carbs: 5, fats: 0, fiber: 0,
-    sodium: 0, iron: 0, calcium: 0, potassium: 0,
-    officeImpact: 'moderate',
-    gallbladderStatus: 'safe',
-    gallbladderNote: 'قلل السكر المضاف لحماية الكبد من الدهون.',
-    expertTip: 'تقليل السكر تدريجياً في الشاي والقهوة يفرق جداً في محيط البطن.'
-  },
-  {
-    id: 'honey_black_or_white',
-    name: 'ملعقة عسل أسود / أبيض',
-    emoji: '🍯',
-    category: 'إضافات',
-    restaurantHint: 'أكل بيتي',
-    serving: 'ملعقة كبيرة • 20 جم',
-    calories: 60, protein: 0, carbs: 16, fats: 0, fiber: 0,
-    sodium: 10, iron: 1.2, calcium: 45, potassium: 290,
-    officeImpact: 'energizing',
-    gallbladderStatus: 'safe',
-    gallbladderNote: 'خالي من الدهون، والعسل الأسود غني بالحديد والكالسيوم.',
-    expertTip: 'ملعقة واحدة مع الطحينة أو الجبنة القريش كافية.'
-  },
-  {
-    id: 'oil_or_ghee_tbsp',
-    name: 'ملعقة زيت / سمن',
-    emoji: '🫒',
-    category: 'إضافات',
-    restaurantHint: 'إضافة للطبخ أو الفول',
-    serving: 'ملعقة كبيرة • 14 جم',
-    calories: 120, protein: 0, carbs: 0, fats: 14, fiber: 0,
-    sodium: 0, iron: 0, calcium: 0, potassium: 0,
-    officeImpact: 'moderate',
-    gallbladderStatus: 'caution',
-    gallbladderNote: 'ملعقة كبيرة واحدة تساوي 14 جم دهون صافية (كامل حد الوجبة الواحدة للمرارة)! استخدم ملعقة صغيرة فقط من زيت الزيتون.',
-    expertTip: 'حساب ملاعق الزيت في الأكل يوضح لك أين تختبئ السعرات.'
+    gallbladderNote: 'الباذنجان المشوي غني بالألياف الذائبة (4 جم) ودهونه أقل بكثير من الطحينة أو التومية.',
+    expertTip: 'أفضل صوص تطلبة جنب المشويات.'
   }
 ];
 
