@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>خبير التغذية المصري | رفيق الشغل المكتبي</title>
+
+  <!-- iOS Web App / PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="خبير التغذية" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+
+  <!-- Tailwind CSS CDN + Custom iOS Styles -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-14 left-4 right-4 z-50 flex flex-col items-center gap-2 pointer-events-none max-w-md mx-auto"></div>
+
+  <!-- iOS Sticky Header -->
+  <header class="ios-header sticky top-0 z-40 px-4 pb-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <img src="./icon.svg" alt="Icon" class="w-9 h-9 rounded-xl shadow-md" />
+        <div>
+          <h1 class="text-sm font-extrabold text-white leading-tight">خبير التغذية المصري 🇪🇬</h1>
+          <p class="text-[11px] text-emerald-300 font-semibold">أكل الشارع • الألياف • مكملات المكتب</p>
+        </div>
+      </div>
+      <button
+        onclick="switchTab('foods', 'fiber_boosters')"
+        class="ios-btn bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1"
+      >
+        <span>🥗</span>
+        <span>رافع ألياف</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main id="app-main-content" class="flex-1 max-w-md w-full mx-auto px-4 pt-4 pb-24"></main>
+
+  <!-- iOS Bottom Tab Bar -->
+  <nav class="ios-tab-bar fixed bottom-0 left-0 right-0 z-40 px-2 pt-2">
+    <div class="max-w-md mx-auto grid grid-cols-5 gap-1 text-center">
+      <button
+        data-tab-btn="dashboard"
+        onclick="switchTab('dashboard')"
+        class="ios-btn flex flex-col items-center justify-center py-1 text-emerald-400"
+      >
+        <span class="text-lg">📊</span>
+        <span class="text-[10px] font-bold mt-0.5">يومي</span>
+      </button>
+
+      <button
+        data-tab-btn="foods"
+        onclick="switchTab('foods')"
+        class="ios-btn flex flex-col items-center justify-center py-1 text-slate-400"
+      >
+        <span class="text-lg">🥙</span>
+        <span class="text-[10px] font-bold mt-0.5">أكل مصر</span>
+      </button>
+
+      <button
+        data-tab-btn="ai"
+        onclick="switchTab('ai')"
+        class="ios-btn flex flex-col items-center justify-center py-1 text-slate-400"
+      >
+        <div class="w-10 h-10 -mt-4 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg pulse-emerald border border-white/20">
+          <span class="text-lg">🤖</span>
+        </div>
+        <span class="text-[10px] font-extrabold text-emerald-300 mt-0.5">الخبير AI</span>
+      </button>
+
+      <button
+        data-tab-btn="supplements"
+        onclick="switchTab('supplements')"
+        class="ios-btn flex flex-col items-center justify-center py-1 text-slate-400"
+      >
+        <span class="text-lg">💊</span>
+        <span class="text-[10px] font-bold mt-0.5">مكملات ومنبه</span>
+      </button>
+
+      <button
+        data-tab-btn="profile"
+        onclick="switchTab('profile')"
+        class="ios-btn flex flex-col items-center justify-center py-1 text-slate-400"
+      >
+        <span class="text-lg">⚙️</span>
+        <span class="text-[10px] font-bold mt-0.5">حسابي</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Scripts -->
+  <script src="./data/egyptian-foods.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

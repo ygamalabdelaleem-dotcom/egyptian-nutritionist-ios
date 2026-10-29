@@ -1,0 +1,20 @@
+{
+  "name": "خبير التغذية المصري - رفيق الشغل المكتبي",
+  "short_name": "خبير التغذية",
+  "description": "تطبيق خبير غذائي ذكي لحساب السعرات والألياف والمكملات مع قاعدة بيانات أكل الشارع والمطاعم المصرية ودعم الذكاء الاصطناعي Gemini",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
