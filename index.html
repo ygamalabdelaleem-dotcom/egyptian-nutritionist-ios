@@ -18,7 +18,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Google Font Cairo & iOS Styles -->
-  <link rel="stylesheet" href="./styles.css?v=10" />
+  <link rel="stylesheet" href="./styles.css?v=11" />
 </head>
 <body class="min-h-screen flex flex-col justify-between">
   <!-- Toast Notification Container -->
@@ -64,6 +64,34 @@
 
   <!-- Main Content Area -->
   <main id="app-main-content" class="flex-1 max-w-md w-full mx-auto px-4 pt-4 pb-24"></main>
+
+  <!-- Floating Circular AI Nutritionist Button (Voice + Text Chat Bubble) -->
+  <div id="floating-ai-widget" class="floating-ai-fab fixed z-40 flex flex-col items-center gap-2">
+    <button
+      id="floating-voice-btn"
+      type="button"
+      onclick="toggleAiVoiceRecording(true)"
+      title="كلم الخبير بالصوت (فويس)"
+      aria-label="كلم الخبير بالصوت"
+      class="ios-btn w-11 h-11 rounded-full bg-slate-900/95 hover:bg-slate-800 text-emerald-300 border-2 border-emerald-400/60 shadow-xl flex items-center justify-center text-lg"
+    >
+      🎙️
+    </button>
+    <button
+      id="floating-chat-btn"
+      type="button"
+      onclick="openAiChatBubble()"
+      title="شات وفويس مع الخبير الغذائي"
+      aria-label="شات وفويس مع الخبير الغذائي"
+      class="ios-btn w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-slate-950 shadow-2xl pulse-emerald border-2 border-white/40 flex flex-col items-center justify-center relative"
+    >
+      <span class="text-xl leading-none">💬</span>
+      <span class="text-[8px] font-extrabold text-slate-950 leading-none mt-0.5">فويس/شات</span>
+      <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-slate-950 text-emerald-300 border border-emerald-400 text-[10px] flex items-center justify-center shadow">
+        🤖
+      </span>
+    </button>
+  </div>
 
   <!-- iOS Bottom Tab Bar -->
   <nav class="ios-tab-bar fixed bottom-0 left-0 right-0 z-40 px-1.5 pt-2">
@@ -127,7 +155,7 @@
   </nav>
 
   <!-- Data & Application Scripts -->
-  <script src="./data/egyptian-foods.js?v=10"></script>
-  <script src="./js/app.js?v=10"></script>
+  <script src="./data/egyptian-foods.js?v=11"></script>
+  <script src="./js/app.js?v=11"></script>
 </body>
 </html>

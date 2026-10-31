@@ -100,3 +100,23 @@ body {
 .pulse-emerald {
   animation: pulseGlow 2.2s infinite;
 }
+
+@keyframes pulseVoiceRed {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(244, 63, 94, 0);
+    transform: scale(1.06);
+  }
+}
+
+.pulse-voice-recording {
+  animation: pulseVoiceRed 1.2s infinite;
+}
+
+.floating-ai-fab {
+  bottom: calc(max(var(--safe-bottom), 10px) + 68px);
+  left: 16px;
+}

@@ -2162,6 +2162,169 @@ function inferMealTimingFromText(text) {
   return 'غدا';
 }
 
+// ===== نظام المحادثة الصوتية (فويس 🎙️) والنطق الصوتي للخبير (🔊) والفقاعة العائمة =====
+let aiSpeechRecognizer = null;
+let isAiVoiceRecording = false;
+let lastMsgWasVoice = false;
+
+window.openAiChatBubble = function () {
+  if (state.activeTab !== 'ai') {
+    switchTab('ai');
+  }
+  setTimeout(() => {
+    const input = document.getElementById('ai-meal-input');
+    if (input) {
+      input.focus();
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 120);
+};
+
+window.speakAiText = function (rawText) {
+  if (!('speechSynthesis' in window)) {
+    showToast('النطق الصوتي غير مدعوم في هذا المتصفح');
+    return;
+  }
+  try {
+    window.speechSynthesis.cancel();
+    const cleanText = String(rawText || '')
+      .replace(/[*#_~`>•]/g, ' ')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!cleanText) return;
+    const utter = new SpeechSynthesisUtterance(cleanText);
+    utter.lang = 'ar-EG';
+    utter.rate = 1.02;
+    const voices = window.speechSynthesis.getVoices();
+    const arVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith('ar'));
+    if (arVoice) utter.voice = arVoice;
+    window.speechSynthesis.speak(utter);
+    showToast('🔊 الخبير الغذائي يتحدث الآن...');
+  } catch (e) {
+    // ignore speech errors
+  }
+};
+
+window.stopAiSpeaking = function () {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    showToast('🔇 تم إيقاف الصوت');
+  }
+};
+
+window.toggleAiAutoVoiceReply = function () {
+  state.aiAutoVoiceReply = !state.aiAutoVoiceReply;
+  saveState();
+  showToast(state.aiAutoVoiceReply ? '🔊 تم تفعيل الرد الصوتي التلقائي للخبير!' : '🔇 تم إيقاف الرد الصوتي التلقائي');
+  renderApp();
+};
+
+function updateVoiceRecordingUi() {
+  const micBtn = document.getElementById('ai-mic-btn');
+  const floatMicBtn = document.getElementById('floating-voice-btn');
+  const statusBanner = document.getElementById('ai-voice-status-banner');
+  if (micBtn) {
+    if (isAiVoiceRecording) {
+      micBtn.classList.add('pulse-voice-recording', 'bg-rose-500', 'text-white');
+      micBtn.classList.remove('bg-slate-800', 'text-emerald-300');
+      micBtn.innerHTML = '⏹️';
+    } else {
+      micBtn.classList.remove('pulse-voice-recording', 'bg-rose-500', 'text-white');
+      micBtn.classList.add('bg-slate-800', 'text-emerald-300');
+      micBtn.innerHTML = '🎙️';
+    }
+  }
+  if (floatMicBtn) {
+    if (isAiVoiceRecording) {
+      floatMicBtn.classList.add('pulse-voice-recording', 'bg-rose-500', 'text-white');
+    } else {
+      floatMicBtn.classList.remove('pulse-voice-recording', 'bg-rose-500', 'text-white');
+    }
+  }
+  if (statusBanner) {
+    statusBanner.classList.toggle('hidden', !isAiVoiceRecording);
+  }
+}
+
+window.toggleAiVoiceRecording = function (autoOpenTab = true) {
+  if (autoOpenTab && state.activeTab !== 'ai') {
+    switchTab('ai');
+  }
+
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    showToast('متصفحك لا يدعم الميكروفون المباشر، يمكنك استخدام ميكروفون لوحة المفاتيح 🎙️');
+    window.openAiChatBubble();
+    return;
+  }
+
+  if (isAiVoiceRecording && aiSpeechRecognizer) {
+    try {
+      aiSpeechRecognizer.stop();
+    } catch (e) {}
+    isAiVoiceRecording = false;
+    updateVoiceRecordingUi();
+    return;
+  }
+
+  try {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    aiSpeechRecognizer = new SpeechRec();
+    aiSpeechRecognizer.lang = 'ar-EG';
+    aiSpeechRecognizer.continuous = false;
+    aiSpeechRecognizer.interimResults = true;
+
+    let finalTranscript = '';
+
+    aiSpeechRecognizer.onstart = () => {
+      isAiVoiceRecording = true;
+      lastMsgWasVoice = true;
+      updateVoiceRecordingUi();
+      showToast('🎙️ تكلم الآن بالعامية المصرية... أنا سامعك!');
+    };
+
+    aiSpeechRecognizer.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += t + ' ';
+        } else {
+          interim += t;
+        }
+      }
+      const input = document.getElementById('ai-meal-input');
+      if (input) {
+        input.value = (finalTranscript + interim).trim();
+      }
+    };
+
+    aiSpeechRecognizer.onerror = () => {
+      isAiVoiceRecording = false;
+      updateVoiceRecordingUi();
+      showToast('تعذر التقاط الصوت، تأكد من السماح للميكروفون 🎙️');
+    };
+
+    aiSpeechRecognizer.onend = () => {
+      isAiVoiceRecording = false;
+      updateVoiceRecordingUi();
+      const input = document.getElementById('ai-meal-input');
+      const spokenText = input?.value?.trim();
+      if (spokenText) {
+        const sendBtn = document.getElementById('ai-send-btn');
+        if (sendBtn) sendBtn.click();
+      }
+    };
+
+    aiSpeechRecognizer.start();
+  } catch (err) {
+    isAiVoiceRecording = false;
+    updateVoiceRecordingUi();
+    showToast('اضغط مرة أخرى لتفعيل الميكروفون 🎙️');
+  }
+};
+
 window.handleSendAiMessage = async function (event) {
   event.preventDefault();
   if (state.pendingAiImage) {
@@ -2174,7 +2337,10 @@ window.handleSendAiMessage = async function (event) {
 
   input.value = '';
   const suggestedTiming = inferMealTimingFromText(text);
-  state.aiHistory.push({ role: 'user', text });
+  const wasVoice = lastMsgWasVoice;
+  lastMsgWasVoice = false;
+
+  state.aiHistory.push({ role: 'user', text: wasVoice ? `🎙️ ${text}` : text });
 
   // يعمل فوراً 100% أوفلاين بدون انتظار أي شبكة أو API
   const result = localEgyptianMealParser(text);
@@ -2188,6 +2354,11 @@ window.handleSendAiMessage = async function (event) {
   });
   saveState();
   renderApp();
+
+  // إذا كان المستخدم يتحدث بالفويس أو مفعل الرد الصوتي التلقائي، ينطق الخبير الرد بصوته!
+  if (wasVoice || state.aiAutoVoiceReply) {
+    window.speakAiText(result.replyText);
+  }
 };
 
 window.addAiParsedMeal = function (index) {
@@ -3392,23 +3563,74 @@ function renderAiExpertView() {
         </p>
       </div>
 
-      <!-- نموذج المحادثة والاستشارة مع الخبير الغذائي الأوفلاين -->
-      <form onsubmit="handleSendAiMessage(event)" class="glass-card p-3.5 space-y-2.5">
-        <label class="block text-xs font-bold text-emerald-300">💬 كلم الخبير الغذائي أو اكتب وجبتك بالعامية (أوفلاين):</label>
-        <textarea
-          id="ai-meal-input"
-          rows="2"
-          placeholder="مثال: ساندوتش بطاطس على فول وكوباية قهوة وسط 200 مل... أو: جبنة شيدر سايبة بتاعة بيت الجملة وتونة... أو: فيوري وبيبسي وعصير بيتي..."
-          class="w-full bg-slate-900/90 text-white text-xs rounded-xl p-3 border border-white/15 focus:outline-none focus:border-emerald-400"
-        ></textarea>
+      <!-- نموذج المحادثة الصوتية (فويس 🎙️) والشات الكتابي (💬) مع الخبير الغذائي الأوفلاين -->
+      <form onsubmit="handleSendAiMessage(event)" class="glass-card p-3.5 space-y-2.5 border border-emerald-500/30">
+        <div class="flex items-center justify-between gap-2">
+          <label class="block text-xs font-extrabold text-emerald-300">💬🎙️ شات كتابة أو فويس بالصوت مع الخبير:</label>
+          <button
+            type="button"
+            onclick="toggleAiAutoVoiceReply()"
+            class="ios-btn text-[10px] px-2.5 py-1 rounded-full font-bold border ${
+              state.aiAutoVoiceReply
+                ? 'bg-emerald-500 text-slate-950 border-emerald-300'
+                : 'bg-slate-800 text-slate-300 border-white/15'
+            }"
+          >
+            ${state.aiAutoVoiceReply ? '🔊 النطق التلقائي: مفعل' : '🔈 النطق التلقائي: مغلق'}
+          </button>
+        </div>
+
+        <!-- شريط حالة التسجيل الصوتي (يظهر أثناء التحدث بالفويس) -->
+        <div id="ai-voice-status-banner" class="${isAiVoiceRecording ? '' : 'hidden'} bg-rose-500/20 border border-rose-500/50 rounded-xl p-2.5 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs font-extrabold text-rose-300">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+            <span>🎙️ جاري سماع صوتك بالعامية المصرية... تكلم الآن!</span>
+          </div>
+          <button type="button" onclick="toggleAiVoiceRecording(false)" class="text-[10px] bg-rose-500 text-white font-bold px-2.5 py-1 rounded-lg">
+            إيقاف وإرسال ⏹️
+          </button>
+        </div>
+
+        <!-- شريط شات وفويس دائري مثل تطبيقات المحادثة الحديثة -->
+        <div class="flex items-center gap-2">
+          <button
+            id="ai-mic-btn"
+            type="button"
+            onclick="toggleAiVoiceRecording(false)"
+            title="اضغط للتحدث بالصوت (فويس)"
+            aria-label="اضغط للتحدث بالصوت"
+            class="ios-btn w-12 h-12 rounded-full flex-shrink-0 ${
+              isAiVoiceRecording ? 'pulse-voice-recording bg-rose-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-emerald-300'
+            } border-2 border-emerald-400/50 flex items-center justify-center text-xl shadow-lg"
+          >
+            ${isAiVoiceRecording ? '⏹️' : '🎙️'}
+          </button>
+
+          <textarea
+            id="ai-meal-input"
+            rows="2"
+            placeholder="اكتب رسالتك هنا أو اضغط 🎙️ واتكلم بالصوت: فطرت ساندوتش بطاطس وفول وكوباية نسكافيه بلبن..."
+            class="flex-1 bg-slate-900/95 text-white text-xs rounded-2xl p-2.5 border border-white/15 focus:outline-none focus:border-emerald-400"
+          ></textarea>
+
+          <button
+            id="ai-send-btn"
+            type="submit"
+            title="إرسال الرسالة"
+            aria-label="إرسال الرسالة"
+            class="ios-btn w-12 h-12 rounded-full flex-shrink-0 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold flex items-center justify-center text-lg shadow-lg"
+          >
+            ➤
+          </button>
+        </div>
 
         <!-- أزرار سريعة للاستشارة عن الإخراج والمزاج وأكلات الشارع والسوبر ماركت أوفلاين -->
-        <div class="flex flex-wrap gap-1.5">
+        <div class="flex flex-wrap gap-1.5 pt-1">
           <button type="button" onclick="document.getElementById('ai-meal-input').value='اقترحلي وجبة تناسب نظامي وحالتي دلوقتي'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-bold">
             🎯 اقترحلي وجبة الآن
           </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='فطرت ساندوتش بطاطس صوابع وساندوتش فول وكوباية قهوة وسط 200 مل'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded-lg">
-            🍟☕ ساندوتش بطاطس وفول وقهوة 200مل
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='فطرت ساندوتش بطاطس صوابع وساندوتش فول وكوباية نسكافيه بلبن'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded-lg">
+            🍟☕ ساندوتش بطاطس وفول ونسكافيه بلبن
           </button>
           <button type="button" onclick="document.getElementById('ai-meal-input').value='جبنة شيدر سايبة شعبي بتاعة بيت الجملة وجبنة رومي'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-rose-300 px-2.5 py-1 rounded-lg">
             🧀 جبنة شيدر سايبة (بيت الجملة) ورومي
@@ -3429,13 +3651,6 @@ function renderAiExpertView() {
             😴 حاسس بخمول وكسل
           </button>
         </div>
-        <button
-          id="ai-send-btn"
-          type="submit"
-          class="ios-btn w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl shadow-lg"
-        >
-          ⚡ حلل فوراً بدون إنترنت
-        </button>
       </form>
 
       <div class="space-y-3">
@@ -3447,10 +3662,33 @@ function renderAiExpertView() {
               ? 'bg-emerald-600/25 border border-emerald-500/30 mr-6'
               : 'glass-card ml-2'
           } p-3.5 rounded-2xl">
-            <div class="text-[11px] font-bold ${
-              msg.role === 'user' ? 'text-emerald-300' : 'text-sky-300'
-            } mb-1">
-              ${msg.role === 'user' ? '👤 أنت' : '👨‍⚕️ الخبير الغذائي المصري (أوفلاين 📴)'}
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <div class="text-[11px] font-bold ${
+                msg.role === 'user' ? 'text-emerald-300' : 'text-sky-300'
+              }">
+                ${msg.role === 'user' ? '👤 أنت' : '👨‍⚕️ الخبير الغذائي المصري (أوفلاين 📴)'}
+              </div>
+              ${
+                msg.role === 'assistant'
+                  ? `<div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onclick="speakAiText(state.aiHistory[${idx}]?.text)"
+                        class="ios-btn text-[10px] bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold"
+                      >
+                        🔊 اسمع الرد
+                      </button>
+                      <button
+                        type="button"
+                        onclick="stopAiSpeaking()"
+                        class="ios-btn text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full"
+                        title="إيقاف الصوت"
+                      >
+                        🔇
+                      </button>
+                    </div>`
+                  : ''
+              }
             </div>
             ${
               msg.imageUrl
