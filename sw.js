@@ -1,15 +1,15 @@
-const CACHE_NAME = 'egy-nutritionist-v11';
+const CACHE_NAME = 'egy-nutritionist-v12';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
-  './styles.css?v=11',
+  './styles.css?v=12',
   './manifest.json',
   './icon.svg',
   './data/egyptian-foods.js',
-  './data/egyptian-foods.js?v=11',
+  './data/egyptian-foods.js?v=12',
   './js/app.js',
-  './js/app.js?v=11'
+  './js/app.js?v=12'
 ];
 
 self.addEventListener('install', (event) => {

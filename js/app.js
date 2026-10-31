@@ -1771,18 +1771,121 @@ async function triggerPhotoAnalysisNow() {
   renderApp();
 }
 
-// المحرك المصري الأوفلاين الشامل (يفهم الاستشارات والأسئلة والوجبات فوراً 100% بدون إنترنت)
+// المحرك المصري الأوفلاين التفاعلي الشامل (يتحاور ويتجاوب معاك طبيعياً ويفهم الاستشارات والأسئلة والوجبات فوراً 100% بدون إنترنت)
 function localEgyptianMealParser(text) {
   let norm = window.normalizeArabic(text);
   for (const [fromWord, toWord] of OFFLINE_SYNONYM_REPLACEMENTS) {
     norm = norm.replaceAll(window.normalizeArabic(fromWord), window.normalizeArabic(toWord));
   }
 
+  const userName = state.profile?.name || 'يا بطل';
+  const totals = getTodayTotals();
+  const t = state.profile.targets;
+  const remCal = Math.max(0, t.calories - totals.calories);
+  const digInfo = window.DIGESTION_STATES.find((d) => d.id === getActiveDigestionStatus()) || window.DIGESTION_STATES[0];
+  const moodInfo = window.MOOD_STATES.find((m) => m.id === getActiveMoodStatus()) || window.MOOD_STATES[1];
+
+  // 0-أ. التحية والترحيب والحوار الاجتماعي المباشر ("ازيك" / "سلام عليكم" / "عامل ايه" / "يا دكتور" / "الو")
+  const isGreetingOnly =
+    /^(اهلا|مرحبا|سلام|السلام عليكم|وعليكم السلام|ازيك|عامل ايه|اخبارك|صباح الخير|صباح النور|مساء الخير|مساء النور|الو|هاي|هلا|يا دكتور|يا كوتش|يا خبير|مين انت|انت مين|بتعمل ايه|ممكن نتكلم|عاوز اكلمك)/.test(
+      norm
+    ) && norm.split(/\s+/).length <= 6;
+
+  if (isGreetingOnly) {
+    const sug = getPersonalizedMealSuggestions('auto', 1);
+    const topFood = sug.items[0]?.food || state.foodsDb[0];
+    return {
+      replyText:
+        `أهلاً بيك يا **${userName}**! 👋👨‍⚕️ أنا خبيرك الغذائي المصري، سامعك ومتابعك لحظة بلحظة بدون نت.\n\n` +
+        `📋 **ملخص حالتك قدامي دلوقتي:**\n` +
+        `• 🔥 أكلت النهاردة: **${totals.calories} سعرة** وباقي لك **${remCal} سعرة**.\n` +
+        `• 🚽 حالة الإخراج: **${digInfo.icon} ${digInfo.label}** | 🧠 المزاج والطاقة: **${moodInfo.icon} ${moodInfo.label}**.\n\n` +
+        `🎙️ **قولي بصوتك أو اكتبلي:** فطرت أو اتغديت إيه النهاردة؟ ولا حاسس بأي تعب في بطنك أو جوع دلوقتي؟\n` +
+        `👇 ودي وجبة سريعة مناسبة لحالتك لو جعان دلوقتي:`,
+      parsedMeal: structuredClone(topFood)
+    };
+  }
+
+  // 0-ب. الشكر والتأكيد ("شكرا" / "تسلم" / "تمام" / "حبيبي" / "ماشي")
+  const isThanksOnly =
+    /^(شكرا|الف شكر|متشكر|تسلم|تسلم ايدك|حبيبي|ربنا يخليك|جزاك الله|تمام|ماشي|حلو قوي|عاش|ممتاز|جميل|اوكي|طيب)$/.test(norm) ||
+    ((norm.includes('شكرا') || norm.includes('تسلم') || norm.includes('ربنا يخليك')) && norm.split(/\s+/).length <= 4);
+
+  if (isThanksOnly) {
+    return {
+      replyText:
+        `حبيبي يا **${userName}** تحت أمرك في أي وقت! 💚👨‍⚕️\n` +
+        `• متنساش تشرب كوباية مية دلوقتي (أنت شربت **${getCurrentDayLog().waterCups} أكواب** النهاردة من أصل **${t.waterCups}**).\n` +
+        `• لو أكلت أي ساندوتش أو شربت قهوة أو عصير، اضغط على الميكروفون 🎙️ وقولي عليه وهحسبهولك فوراً!`,
+      parsedMeal: null
+    };
+  }
+
+  // 0-ج. استشارة عن مغص البطن أو وجع مكان المرارة أو الغثيان أو التقل بعد الأكل
+  if (
+    norm.includes('مغص') ||
+    norm.includes('بطني بتوجعني') ||
+    norm.includes('بطني واجعاني') ||
+    norm.includes('جنبي اليمين') ||
+    norm.includes('غثيان') ||
+    norm.includes('غممان') ||
+    norm.includes('ترجيع') ||
+    norm.includes('مراره في بقي') ||
+    norm.includes('تقلت في الاكل') ||
+    norm.includes('تخمه') ||
+    norm.includes('حرقان')
+  ) {
+    const herbalDrink = state.foodsDb.find((f) => f.id === 'herbal_anise_mint_green_tea_200ml') || state.foodsDb[0];
+    return {
+      replyText:
+        `🩺 **ألف سلامة عليك يا ${userName}! اسمع مني الخطوات دي فوراً لتهدئة البطن والقنوات الصفراوية:**\n` +
+        `1. **اشرب دلوقتي كوباية ينسون أو نعناع دافئ بدون سكر** (بيرخي تقلص القنوات الصفراوية ويهدي المغص والغثيان خلال 15 دقيقة).\n` +
+        `2. **لو كنت لسه واكل أكلة دسمة أو مقلية:** خد كبسولة **إنزيمات هاضمة (Digestive Enzymes / Ox Bile)** لو الدكتور كاتبهالك، وقوم امشي في المكان 5 دقايق متنامش بعد الأكل.\n` +
+        `3. **لربط العصارة الصفراوية الزيادة:** كُل **نصف تفاحة مقشرة** أو **علبة زبادي لايت / لبن رايب** أو **موزة**.\n` +
+        `4. ابعد باقي اليوم تماماً عن المقليات، الجبنة السايبة النباتي، البيبسي، والفيوري.`,
+      parsedMeal: structuredClone(herbalDrink)
+    };
+  }
+
+  // 0-د. استشارة عن التخسيس ونزول الكرش وثبات الوزن
+  if (
+    norm.includes('عاوز اخس') ||
+    norm.includes('عايز اخس') ||
+    norm.includes('تخسيس') ||
+    norm.includes('انزل الكرش') ||
+    norm.includes('دهون البطن') ||
+    norm.includes('وزني ثابت') ||
+    norm.includes('احرق دهون')
+  ) {
+    const sug = getPersonalizedMealSuggestions('auto', 2);
+    const topFood = sug.items[0]?.food || state.foodsDb[0];
+    return {
+      replyText:
+        `⚖️ **خطة نزول الكرش والوزن ليك يا ${userName} (مع الحفاظ على راحة المرارة في الشغل):**\n` +
+        `• هدفك الحالي محسوب على **${t.calories} سعرة/يوم** و **${t.protein} جم بروتين** و **${t.fiber} جم ألياف**.\n` +
+        `• **أكبر 3 أسرار تنزل بطنك وأنت شايل المرارة:**\n` +
+        `  1. **بدّل الدهون الصناعية بالبروتين:** امتنع عن الجبنة الشيدر السايبة (نباتي الدهن)، التومية، والبطاطس المقلية، واستبدلها بـ **التونة المصفاة، البيض المسلوق، الجبنة القريش، والفراخ المشوية**.\n` +
+        `  2. **الألياف الذائبة في كل وجبة:** (سلطة خضراء، جرجير، شوفان، بليلة، فاكهة بقشرها) لأنها بتمتص الدهون والأحماض الصفراوية وتمنع تخزين دهون البطن.\n` +
+        `  3. **المشروبات:** اشرب قهوة وسط أو نسكافيه بلبن طبيعي بدون سكر بدل الفيوري والبيبسي والعصائر المعلبة بالسكر.\n` +
+        `👇 ودي وجبة مشبعة جداً لحرق الدهون ومريحة للمرارة:`,
+      parsedMeal: structuredClone(topFood)
+    };
+  }
+
+  // 0-هـ. سؤال عن الفرق بين البيض الأحمر والأبيض والبلدي أو الشيدر والتونة
+  if (norm.includes('الفرق بين') && norm.includes('بيض')) {
+    const baladiEgg = state.foodsDb.find((f) => f.id === 'eggs_baladi_boiled_2') || state.foodsDb[0];
+    return {
+      replyText:
+        `🥚 **الفرق العلمي والعملي بين البيض الأحمر والأبيض والبلدي في مصر:**\n` +
+        `1. **البيض الأحمر والأبيض (المزارع):** مفيش أي فرق في القيمة الغذائية! لون القشرة بيختلف بس حسب سلالة الفرخة؛ البيضتين الكبار (110 جم) فيهم **152-155 سعرة، 13 جم بروتين، و10.5 جم دهون**.\n` +
+        `2. **البيض البلدي الفلاحي:** حجمه أصغر شوية فـ **البيضتين البلدي فيهم 130 سعرة و9 جم دهون فقط**، وده بيخليه **أخف وأريح اختيار للي شايل المرارة** لو بياكل البيضة كاملة بالصفار!`,
+      parsedMeal: structuredClone(baladiEgg)
+    };
+  }
+
   // 1. استشارة عن ملخص وتقييم اليوم ("تقييم يومي" / "فاضلي كام سعرة" / "اكلت ايه النهارده")
-  if (norm.includes('تقييم يومي') || norm.includes('فاضلي كام') || norm.includes('باقي كام سعره') || norm.includes('ملخص يومي')) {
-    const totals = getTodayTotals();
-    const t = state.profile.targets;
-    const remCal = Math.max(0, t.calories - totals.calories);
+  if (norm.includes('تقييم يومي') || norm.includes('فاضلي كام') || norm.includes('باقي كام سعره') || norm.includes('ملخص يومي') || norm.includes('اكلت ايه النهارده')) {
     const sug = getPersonalizedMealSuggestions('auto', 1);
     const topFood = sug.items[0]?.food || state.foodsDb[0];
     return {
@@ -2040,8 +2143,38 @@ function localEgyptianMealParser(text) {
   // تعديل الدهون والسعرات تلقائياً إذا ذكر المستخدم طريقة طبخ دسمة أو خفيفة
   const isExtraFried = norm.includes('مقلي') || norm.includes('محمر') || norm.includes('بالسمنه') || norm.includes('بالزبده') || norm.includes('قشطه');
   const isLightCooked = norm.includes('مسلوق') || norm.includes('بدون زيت') || norm.includes('دايت') || norm.includes('ايرفراير');
+  const hasMealActionWord =
+    norm.includes('اكلت') ||
+    norm.includes('فطرت') ||
+    norm.includes('اتغديت') ||
+    norm.includes('اتعشيت') ||
+    norm.includes('شربت') ||
+    norm.includes('اخدت') ||
+    norm.includes('طبق') ||
+    norm.includes('ساندوتش') ||
+    norm.includes('رغيف') ||
+    norm.includes('علبه') ||
+    norm.includes('كوبايه') ||
+    norm.includes('كوب') ||
+    norm.includes('فنجان') ||
+    norm.includes('قطعه');
 
   if (matchedFoods.length === 0) {
+    // إذا كان المستخدم يتحاور أو يسأل سؤالاً عاماً وليس يذكر وجبة أكلها، نرد عليه بحوار تفاعلي ذكي
+    if (!hasMealActionWord) {
+      const sug = getPersonalizedMealSuggestions('auto', 2);
+      const topFood = sug.items[0]?.food || state.foodsDb[0];
+      return {
+        replyText:
+          `👨‍⚕️ **سمعتك يا ${userName}! بخصوص كلامك: "${text.trim().slice(0, 50)}"**\n` +
+          `• أنا معاك عشان أجاوبك على أي حاجة تخص أكلك، المرارة، الإخراج (${digInfo.label})، أو طاقتك في الشغل (${moodInfo.label}).\n` +
+          `• **وضعك النهاردة:** سجلت **${totals.calories} سعرة** ومتبقي لك **${remCal} سعرة**، وشربت **${getCurrentDayLog().waterCups} أكواب مية**.\n` +
+          `• تقدر تقولي بصوتك أو تكتبلي مثلاً: *"فطرت ساندوتش بطاطس وفول ونسكافيه بلبن"* أو *"ينفع آكل جبنة رومي؟"* أو *"بطني واجعاني آكل إيه؟"*.\n` +
+          `👇 ودي أفضل وجبة أرشحهالك في الوقت ده بناءً على حالتك:`,
+        parsedMeal: structuredClone(topFood)
+      };
+    }
+
     const baseFats = isExtraFried ? 20 : isLightCooked ? 7 : 12;
     const baseCal = isExtraFried ? 510 : isLightCooked ? 320 : 410;
     const estMeal = {
@@ -2120,6 +2253,14 @@ function localEgyptianMealParser(text) {
       : `🟢 **آمن لما بعد استئصال المرارة:** الدهون في هذه الوجبة **${combined.fats} جم** فقط (ضمن الحد الآمن ${maxSafeFat} جم/وجبة).`
     : '';
 
+  const isQuestionAboutFood =
+    norm.includes('ينفع') || norm.includes('مضر') || norm.includes('رايك') || norm.includes('كويس') || norm.includes('عادي') || norm.includes('هل ');
+  const doctorIntro = isQuestionAboutFood
+    ? combined.fats > maxSafeFat
+      ? `👨‍⚕️ **إجابتي ليك يا ${userName}:** الصنف ده (**${mealTitle}**) تقيل على مرارتك لأن دهونه **${combined.fats} جم**؛ لو نفسك فيه خد نصف حصة بس (0.5×) مع سلطة خضراء!\n`
+      : `👨‍⚕️ **إجابتي ليك يا ${userName}:** أيوه طبعاً ينفع! (**${mealTitle}**) اختيار ممتاز ومريح لمرارتك ودهونه آمنة (**${combined.fats} جم**).\n`
+    : '';
+
   const parsedMeal = {
     id: 'smart_parsed_' + Date.now(),
     sourceFoodId: matchedFoods.length === 1 ? matchedFoods[0].id : null,
@@ -2145,10 +2286,12 @@ function localEgyptianMealParser(text) {
 
   return {
     replyText:
-      `📴 **تحليل الخبير الأوفلاين لوجبتك: ${mealTitle}** 🍽️\n` +
+      doctorIntro +
+      `📴 **تحليل الخبير الأوفلاين لـ: ${mealTitle}** 🍽️\n` +
       `• 🔥 السعرات: **${combined.calories} سعرة** | 🍗 البروتين: **${combined.protein} جم** | 🩺 الدهون: **${combined.fats} جم** | 🌾 الألياف: **${combined.fiber} جم**\n` +
       `• 🧪 المعادن: صوديوم **${combined.sodium} ملجم** | حديد **${combined.iron} ملجم** | كالسيوم **${combined.calcium} ملجم** | بوتاسيوم **${combined.potassium} ملجم**\n` +
       `${gbEvaluation ? '• ' + gbEvaluation + '\n' : ''}` +
+      `${combined.gbNotes[0] ? '• 🩺 للمرارة: ' + combined.gbNotes[0] + '\n' : ''}` +
       `${combined.tips[0] ? '• 💡 نصيحة الخبير: ' + combined.tips[0] : ''}`,
     parsedMeal
   };
@@ -2168,16 +2311,47 @@ let isAiVoiceRecording = false;
 let lastMsgWasVoice = false;
 
 window.openAiChatBubble = function () {
+  // إذا لم تكن هناك رسائل بعد، يبدأ الخبير بالترحيب التفاعلي بالمستخدم فوراً
+  if (!Array.isArray(state.aiHistory) || state.aiHistory.length === 0) {
+    const welcome = localEgyptianMealParser('اهلا يا دكتور');
+    state.aiHistory = [
+      {
+        role: 'assistant',
+        text: welcome.replyText,
+        parsedMeal: welcome.parsedMeal
+      }
+    ];
+    saveState();
+  }
+
   if (state.activeTab !== 'ai') {
     switchTab('ai');
+  } else {
+    renderApp();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
   setTimeout(() => {
     const input = document.getElementById('ai-meal-input');
     if (input) {
       input.focus();
-      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, 120);
+  }, 150);
+};
+
+window.clearAiChatHistory = function () {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  const welcome = localEgyptianMealParser('اهلا يا دكتور');
+  state.aiHistory = [
+    {
+      role: 'assistant',
+      text: welcome.replyText,
+      parsedMeal: welcome.parsedMeal
+    }
+  ];
+  saveState();
+  renderApp();
+  showToast('🔄 بدأت محادثة تفاعلية جديدة مع الخبير!');
 };
 
 window.speakAiText = function (rawText) {
@@ -2354,6 +2528,13 @@ window.handleSendAiMessage = async function (event) {
   });
   saveState();
   renderApp();
+
+  setTimeout(() => {
+    const latestEl = document.getElementById('ai-latest-msg');
+    if (latestEl) {
+      latestEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, 100);
 
   // إذا كان المستخدم يتحدث بالفويس أو مفعل الرد الصوتي التلقائي، ينطق الخبير الرد بصوته!
   if (wasVoice || state.aiAutoVoiceReply) {
@@ -3518,26 +3699,76 @@ function renderInsightsView() {
   `;
 }
 
-// ===== 4. واجهة الخبير الذكي الأوفلاين (يعمل 100% بدون إنترنت وبدون API Key) =====
+// ===== 4. واجهة الخبير الذكي التفاعلية الحية (تفتح عند الضغط على الأيقونة المدورة وتستجيب بالفويس والشات والكاميرا 100% أوفلاين) =====
 function renderAiExpertView() {
   const digInfo = window.DIGESTION_STATES.find((d) => d.id === getActiveDigestionStatus()) || window.DIGESTION_STATES[0];
   const moodInfo = window.MOOD_STATES.find((m) => m.id === getActiveMoodStatus()) || window.MOOD_STATES[1];
+  const userName = state.profile?.name || 'يا بطل';
+
+  // إذا دخل المستخدم الصفحة لأول مرة وكان السجل فارغاً، نجهز ترحيباً تفاعلياً تلقائياً
+  if (!Array.isArray(state.aiHistory) || state.aiHistory.length === 0) {
+    const welcome = localEgyptianMealParser('اهلا يا دكتور');
+    state.aiHistory = [
+      {
+        role: 'assistant',
+        text: welcome.replyText,
+        parsedMeal: welcome.parsedMeal
+      }
+    ];
+  }
 
   return `
     <div class="space-y-4 pb-6">
-      <div class="glass-card-highlight p-4">
+      <!-- بطاقة التفاعل الحي مع الخبير الغذائي (دائرة الفويس والشات التفاعلية) -->
+      <div class="glass-card-highlight p-4 space-y-3 border border-emerald-400/40">
         <div class="flex items-center justify-between gap-2">
-          <h2 class="text-base font-extrabold text-white flex items-center gap-2">
-            <span>🤖📸</span>
-            <span>الخبير الغذائي وكاميرا الأكل</span>
-          </h2>
-          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-bold">
-            📴 يعمل 100% بدون نت
-          </span>
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <h2 class="text-sm font-extrabold text-white">👨‍⚕️ صفحة التحدث والتجاوب المباشر مع الخبير</h2>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              onclick="clearAiChatHistory()"
+              class="ios-btn text-[10px] bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/15 px-2.5 py-1 rounded-full font-bold"
+            >
+              🔄 محادثة جديدة
+            </button>
+            <button
+              type="button"
+              onclick="switchTab('dashboard')"
+              class="ios-btn text-[10px] bg-slate-900/80 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-bold"
+            >
+              ✕ رجوع ليومي
+            </button>
+          </div>
         </div>
-        <p class="text-xs text-slate-300 mt-1">
-          يعمل بالكامل على جهازك **بدون إنترنت وبدون API Key**: صوّر طبقك بالكاميرا أو كلمني بالعامية عن أكلك أو حالتك (الإخراج: <strong>${digInfo.label}</strong> • الشعور: <strong>${moodInfo.label}</strong>)، وهحسبلك السعرات والماكروز والمعادن وأمان المرارة في نفس اللحظة!
-        </p>
+
+        <!-- الدائرة التفاعلية للتحدث بالصوت مع الخبير -->
+        <div class="flex flex-col items-center justify-center py-2 text-center">
+          <button
+            type="button"
+            onclick="toggleAiVoiceRecording(false)"
+            class="ios-btn w-20 h-20 rounded-full ${
+              isAiVoiceRecording
+                ? 'pulse-voice-recording bg-gradient-to-tr from-rose-600 to-amber-500 text-white border-4 border-rose-300'
+                : 'pulse-emerald bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-300 text-slate-950 border-4 border-white/40'
+            } shadow-2xl flex flex-col items-center justify-center"
+          >
+            <span class="text-3xl leading-none">${isAiVoiceRecording ? '⏹️' : '🎙️'}</span>
+            <span class="text-[9px] font-extrabold mt-1">${isAiVoiceRecording ? 'اضغط للإرسال' : 'اضغط واتكلم'}</span>
+          </button>
+          <p class="text-xs font-bold text-emerald-300 mt-2">
+            ${
+              isAiVoiceRecording
+                ? '🔴 أنا سامعك دلوقتي.. قول أكلت إيه أو حاسس بإيه!'
+                : `أهلاً بيك يا ${escapeHtml(userName)}! اضغط على الدائرة فوق 🎙️ وكلمني بالصوت أو اكتبلي تحت وهتجاوب معاك فوراً`
+            }
+          </p>
+          <p class="text-[10px] text-slate-300 mt-0.5">
+            مرتبط بنظامك الآن: الإخراج (<strong>${digInfo.icon} ${digInfo.label}</strong>) • الشعور (<strong>${moodInfo.icon} ${moodInfo.label}</strong>) • أوفلاين 📴
+          </p>
+        </div>
       </div>
 
       <!-- قسم تصوير أو رفع صورة الأكل لحساب السعرات والعناصر الغذائية 100% أوفلاين -->
@@ -3558,9 +3789,6 @@ function renderAiExpertView() {
             <input type="file" accept="image/*" onchange="handleFoodPhotoSelected(event)" class="hidden" />
           </label>
         </div>
-        <p class="text-[10px] text-slate-400">
-          💡 يحلل ألوان الطبق مباشرة على جهازك بدون إرسال صورك للإنترنت، ويمكنك تعديل الحصة أو اختيار الصنف بضغطة زر!
-        </p>
       </div>
 
       <!-- نموذج المحادثة الصوتية (فويس 🎙️) والشات الكتابي (💬) مع الخبير الغذائي الأوفلاين -->
@@ -3609,7 +3837,7 @@ function renderAiExpertView() {
           <textarea
             id="ai-meal-input"
             rows="2"
-            placeholder="اكتب رسالتك هنا أو اضغط 🎙️ واتكلم بالصوت: فطرت ساندوتش بطاطس وفول وكوباية نسكافيه بلبن..."
+            placeholder="اكتب رسالتك هنا أو اضغط 🎙️ واتكلم بالصوت: ازيك يا دكتور... أو: فطرت ساندوتش بطاطس وفول ونسكافيه بلبن..."
             class="flex-1 bg-slate-900/95 text-white text-xs rounded-2xl p-2.5 border border-white/15 focus:outline-none focus:border-emerald-400"
           ></textarea>
 
@@ -3624,31 +3852,34 @@ function renderAiExpertView() {
           </button>
         </div>
 
-        <!-- أزرار سريعة للاستشارة عن الإخراج والمزاج وأكلات الشارع والسوبر ماركت أوفلاين -->
+        <!-- أزرار حوار وتجاوب سريعة مع الخبير -->
         <div class="flex flex-wrap gap-1.5 pt-1">
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='ازيك يا دكتور إيه أخبار يومي؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-bold">
+            👋 ازيك يا دكتور إيه أخبار يومي؟
+          </button>
           <button type="button" onclick="document.getElementById('ai-meal-input').value='اقترحلي وجبة تناسب نظامي وحالتي دلوقتي'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-bold">
             🎯 اقترحلي وجبة الآن
           </button>
           <button type="button" onclick="document.getElementById('ai-meal-input').value='فطرت ساندوتش بطاطس صوابع وساندوتش فول وكوباية نسكافيه بلبن'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded-lg">
             🍟☕ ساندوتش بطاطس وفول ونسكافيه بلبن
           </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='جبنة شيدر سايبة شعبي بتاعة بيت الجملة وجبنة رومي'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-rose-300 px-2.5 py-1 rounded-lg">
-            🧀 جبنة شيدر سايبة (بيت الجملة) ورومي
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='ينفع آكل جبنة شيدر سايبة بتاعة بيت الجملة ولا جبنة رومي؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-rose-300 px-2.5 py-1 rounded-lg">
+            🧀 ينفع آكل شيدر سايبة أو رومي؟
           </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='علبة تونة وبيضتين بلدي وفنجان قهوة 75 مل'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-2.5 py-1 rounded-lg">
-            🥫🥚 تونة وبيض بلدي وفنجان قهوة
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='إيه الفرق بين البيض الأحمر والأبيض والبلدي؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-2.5 py-1 rounded-lg">
+            🥚 الفرق بين البيض الأحمر والأبيض والبلدي
           </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='شربت فيوري أو بيبسي أو عصير جهينة وبيتي'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-purple-300 px-2.5 py-1 rounded-lg">
-            ⚡🧃 فيوري وبيبسي وعصير بيتي/جهينة
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='بطني بتوجعني وحاسس بمغص بعد الأكل أعمل إيه؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-rose-300 px-2.5 py-1 rounded-lg">
+            🩺 بطني واجعاني / مغص بعد الأكل
+          </button>
+          <button type="button" onclick="document.getElementById('ai-meal-input').value='عاوز أخس وأنزل الكرش وأنا قاعد في المكتب'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-purple-300 px-2.5 py-1 rounded-lg">
+            ⚖️ عاوز أخس وأنزل الكرش
           </button>
           <button type="button" onclick="document.getElementById('ai-meal-input').value='عندي إمساك آكل إيه يريح بطني؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-amber-300 px-2.5 py-1 rounded-lg">
             🟠 عندي إمساك آكل إيه؟
           </button>
           <button type="button" onclick="document.getElementById('ai-meal-input').value='عندي إسهال بعد المرارة أتصرف إزاي وآكل إيه؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-rose-300 px-2.5 py-1 rounded-lg">
             🔴 عندي إسهال بعد المرارة
-          </button>
-          <button type="button" onclick="document.getElementById('ai-meal-input').value='حاسس بخمول وكسل في الشغل آكل إيه يديني طاقة؟'; document.getElementById('ai-send-btn').click()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-2.5 py-1 rounded-lg">
-            😴 حاسس بخمول وكسل
           </button>
         </div>
       </form>
@@ -3657,7 +3888,7 @@ function renderAiExpertView() {
         ${state.aiHistory
           .map(
             (msg, idx) => `
-          <div class="${
+          <div ${idx === state.aiHistory.length - 1 ? 'id="ai-latest-msg"' : ''} class="${
             msg.role === 'user'
               ? 'bg-emerald-600/25 border border-emerald-500/30 mr-6'
               : 'glass-card ml-2'
