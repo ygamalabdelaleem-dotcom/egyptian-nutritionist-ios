@@ -18,7 +18,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Google Font Cairo & iOS Styles -->
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=9" />
 </head>
 <body class="min-h-screen flex flex-col justify-between">
   <!-- Toast Notification Container -->
@@ -27,29 +27,36 @@
   <!-- iOS Sticky Header -->
   <header class="ios-header sticky top-0 z-40 px-4 pb-3">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-slate-900 flex items-center justify-center shadow-md border border-emerald-400/30 text-lg">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-slate-900 flex items-center justify-center shadow-md border border-emerald-400/30 text-base">
           🥗
         </div>
         <div>
-          <h1 class="text-sm font-extrabold text-white leading-tight">خبير التغذية المصري & أكلي 🇪🇬</h1>
-          <p class="text-[10px] text-emerald-300 font-semibold">ساندوتشات ومطاعم • بدون مرارة 🩺 • متابعة 7 أيام</p>
+          <h1 class="text-xs font-extrabold text-white leading-tight">خبير التغذية المصري & أكلي 🇪🇬</h1>
+          <p class="text-[9px] text-emerald-300 font-semibold">ساندوتشات • مشروبات • سوبر ماركت • بدون مرارة 🩺</p>
         </div>
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1">
+        <button
+          onclick="switchTab('foods', 'مشروبات')"
+          class="ios-btn bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-300 text-[10px] font-bold px-2 py-1.5 rounded-xl flex items-center gap-1"
+        >
+          <span>🥤</span>
+          <span>مشروبات</span>
+        </button>
+        <button
+          onclick="switchTab('foods', 'سوبر ماركت')"
+          class="ios-btn bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-300 text-[10px] font-bold px-2 py-1.5 rounded-xl flex items-center gap-1"
+        >
+          <span>🛒</span>
+          <span>سوبرماركت</span>
+        </button>
         <button
           onclick="switchTab('foods', 'ساندوتشات')"
-          class="ios-btn bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1"
+          class="ios-btn bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-[10px] font-bold px-2 py-1.5 rounded-xl flex items-center gap-1"
         >
           <span>🥪</span>
           <span>ساندوتشات</span>
-        </button>
-        <button
-          onclick="switchTab('foods', 'gallbladder_safe')"
-          class="ios-btn bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl flex items-center gap-1"
-        >
-          <span>🩺</span>
-          <span>للمرارة</span>
         </button>
       </div>
     </div>
@@ -120,7 +127,7 @@
   </nav>
 
   <!-- Data & Application Scripts -->
-  <script src="./data/egyptian-foods.js"></script>
-  <script src="./js/app.js"></script>
+  <script src="./data/egyptian-foods.js?v=9"></script>
+  <script src="./js/app.js?v=9"></script>
 </body>
 </html>

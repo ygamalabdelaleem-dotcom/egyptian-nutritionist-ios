@@ -236,14 +236,17 @@ function loadState() {
 
     let mergedFoodsDb = base.foodsDb;
     if (Array.isArray(parsed.foodsDb) && parsed.foodsDb.length > 0) {
-      const existingIds = new Set(parsed.foodsDb.map((f) => f.id));
-      const newDefaultFoods = base.foodsDb.filter((f) => !existingIds.has(f.id));
-      mergedFoodsDb = [...newDefaultFoods, ...parsed.foodsDb].map((f) => {
+      const baseMap = new Map(base.foodsDb.map((f) => [f.id, f]));
+      const customFoods = parsed.foodsDb.filter((f) => f.custom && !baseMap.has(f.id));
+      mergedFoodsDb = [...customFoods, ...base.foodsDb].map((f) => {
         if (!f.emoji || String(f.emoji).includes('треугольник')) {
           return { ...f, emoji: '🌯' };
         }
         return f;
       });
+    }
+    if (parsed.selectedCategory === 'سوبر ماركت ومشروبات') {
+      parsed.selectedCategory = 'مشروبات';
     }
 
     const merged = {
@@ -1079,7 +1082,7 @@ window.openEditFoodDbModal = function (foodId = null) {
         <div>
           <label class="text-slate-300 font-bold block mb-1">تصنيف الأكلة</label>
           <select id="db-food-cat" class="w-full bg-slate-900 text-white rounded-xl px-3 py-2 border border-white/15">
-            ${['سوبر ماركت ومشروبات', 'ساندوتشات', 'فطار', 'كشري وطواجن', 'غدا', 'سناك', 'إضافات']
+            ${['مشروبات', 'سوبر ماركت', 'ساندوتشات', 'فطار', 'كشري وطواجن', 'غدا', 'سناك', 'إضافات']
               .map((c) => `<option value="${c}" ${food.category === c ? 'selected' : ''}>${c}</option>`)
               .join('')}
           </select>
