@@ -1,4 +1,4 @@
-const CACHE_NAME = 'egy-nutritionist-v4';
+const CACHE_NAME = 'egy-nutritionist-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -34,6 +34,8 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() =>
+        caches.match(event.request, { ignoreSearch: true }).then((cached) => cached || caches.match('./index.html'))
+      )
   );
 });
