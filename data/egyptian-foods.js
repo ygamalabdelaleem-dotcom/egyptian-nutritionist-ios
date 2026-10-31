@@ -1362,6 +1362,34 @@ window.EGYPTIAN_FOODS_DB = [
     expertTip: 'الكمون والليمون يمنعان الانتفاخ ويزودان امتصاص الحديد من الفول.'
   },
   {
+    id: 'nescafe_with_milk_cup_200ml',
+    name: 'كوباية نسكافيه بلبن وسط (200 مل - نسكافيه بلاك/جولد بلبن)',
+    emoji: '☕',
+    category: 'مشروبات',
+    restaurantHint: 'المكتب / البيت / الكافيه',
+    serving: 'كوباية أو مج وسط • 200 مل',
+    calories: 95, protein: 4.5, carbs: 10, fats: 3.5, fiber: 0,
+    sodium: 65, iron: 0.2, calcium: 150, potassium: 210,
+    officeImpact: 'energizing',
+    gallbladderStatus: 'safe',
+    gallbladderNote: 'ممتاز ومريح بدون مرارة (3.5 جم دهون فقط لو بلبن قليل أو نصف دسم)! اللبن بيغلف المعدة ويقلل تهييج الكافيين للقنوات الصفراوية والقولون.',
+    expertTip: 'اعمله بملعقة نسكافيه بلاك + لبن طبيعي قليل الدسم بدل المبيض الصناعي.'
+  },
+  {
+    id: 'nescafe_3in1_sachet_milk_200ml',
+    name: 'كوباية نسكافيه 3×1 بلبن / مبيض (كيس 3 في 1 - 200 مل)',
+    emoji: '☕',
+    category: 'مشروبات',
+    restaurantHint: 'السوبر ماركت والمكتب (أظرف نسكافيه 3×1 / كابتشينو)',
+    serving: 'كوباية وسط • 200 مل',
+    calories: 135, protein: 2.5, carbs: 19, fats: 5.5, fiber: 0,
+    sodium: 75, iron: 0.1, calcium: 90, potassium: 140,
+    officeImpact: 'moderate',
+    gallbladderStatus: 'caution',
+    gallbladderNote: 'أظرف النسكافيه (3×1) تحتوي على مبيض قهوة مصنوع من زيوت نباتية مهدرجة وسكر، وقد تسبب انتفاخاً أو ليونة لمن أزال المرارة لو شربت أكثر من كوباية.',
+    expertTip: 'النسكافيه البلاك مع لبن طبيعي أفيد بكتير للمرارة والتركيز.'
+  },
+  {
     id: 'coffee_cup_medium_200ml',
     name: 'كوباية قهوة وسط (200 مل - سادة / مظبوط / باللبن)',
     emoji: '☕',

@@ -1921,6 +1921,11 @@ function localEgyptianMealParser(text) {
       const m = state.foodsDb.find((f) => f.id === 'cheddar_loose_popular_palm_oil');
       if (m) return m;
     }
+    if (segNorm.includes('نسكافيه') || segNorm.includes('كابتشينو')) {
+      const is3in1 = segNorm.includes('3') || segNorm.includes('كيس') || segNorm.includes('ظرف') || segNorm.includes('مبيض');
+      const m = state.foodsDb.find((f) => f.id === (is3in1 ? 'nescafe_3in1_sachet_milk_200ml' : 'nescafe_with_milk_cup_200ml'));
+      if (m) return m;
+    }
     if (segNorm.includes('فنجان') && (segNorm.includes('قهوه') || segNorm.includes('قوه') || segNorm.includes('100') || segNorm.includes('75'))) {
       const m = state.foodsDb.find((f) => f.id === 'coffee_finjan_small_85ml');
       if (m) return m;
